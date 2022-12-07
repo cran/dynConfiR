@@ -4,16 +4,16 @@
 #' \code{predictWEV_Conf} predicts the categorical response distribution of
 #' decision and confidence ratings, \code{predictWEV_RT} computes the predicted
 #' RT distribution (density) in the 2DSD Model (Pleskac & Busemeyer, 2010) and the
-#' dynWEV model (Hellmann et al., preprint), given specific parameter constellations.
+#' dynWEV model (Hellmann et al., in press), given specific parameter constellations.
 #' See \code{\link{dWEV}} and \code{\link{d2DSD}} for more information about parameters.
 #'
 #' @param paramDf a list or dataframe with one row. Column names should match the names
-#' of dynWEV and 2DSD model specific parameter names. For different stimulus quality/mean
-#' drift rates, names should be v1, v2, v3,....
-#' Different sv and/or s parameters are possible with sv1, sv2, sv3... (s1, s2, s3,...
+#' of \link{dynWEV} and \link{2DSD} model specific parameter names.
+#' For different stimulus quality/mean drift rates, names should be `v1`, `v2`, `v3`,....
+#' Different `sv` and/or `s` parameters are possible with `sv1`, `sv2`, `sv3`... (`s1`, `s2`, `s3`,...
 #' respectively) with equally many steps as for drift rates. Additionally, the confidence
-#' thresholds should be given by names with thetaUpper1, thetaUpper2,..., thetaLower1,... or,
-#' for symmetric thresholds only by theta1, theta2,....
+#' thresholds should be given by names with `thetaUpper1`, `thetaUpper2`,..., `thetaLower1`,... or,
+#' for symmetric thresholds only by `theta1`, `theta2`,....
 #' @param model character scalar. One of "dynWEV" or "2DSD".
 #' @param precision numerical scalar value. Precision of calculation. Corresponds to the
 #' step size of integration w.r.t. `z` and `t0`. Default is 1e-5.
@@ -28,32 +28,33 @@
 #' subsequent before response and computations are different, when there is an observable
 #' interjudgment time (then `simult_conf` should be FALSE).
 #' @param scaled logical. For \code{predictWEV_RT}. Whether the computed density
-#' should be scaled to integrate to one (additional column densscaled). Otherwise the output
-#' is a defective density (i.e. its integral is equal to the probability of a response and
-#' not 1). If TRUE, the argument `DistConf` should be given, if available. Default: FALSE.
-#' @param DistConf NULL or data.frame. A data.frame or matrix with column names, giving
-#' the distribution of response and rating choices for different conditions and stimulus
-#' categories in the form of the output of \code{predictWEV_Conf}. It is only necessary,
-#' if `scaled=TRUE`, because these probabilities are used for scaling.
-#' If `scaled=TRUE` and `DistConf=NULL`, it will be computed
+#' should be scaled to integrate to one (additional column `densscaled`). Otherwise the output
+#' contains only the defective density (i.e. its integral is equal to the probability of a
+#' response and not 1). If `TRUE`, the argument `DistConf` should be given, if available.
+#' Default: `FALSE`.
+#' @param DistConf `NULL` or `data.frame`. A `data.frame` or `matrix` with column
+#' names, giving the distribution of response and rating choices for
+#' different conditions and stimulus categories in the form of the output of
+#' \code{predictWEV_Conf}. It is only necessary, if `scaled=TRUE`, because these
+#' probabilities are used for scaling. If `scaled=TRUE` and `DistConf=NULL`, it will be computed
 #' with the function \code{predictWEV_Conf}, which takes some time and the function will
-#' throw a message. Default: NULL
+#' throw a message. Default: `NULL`
 #' @param stop.on.error logical. Argument directly passed on to integrate. Default is FALSE,
 #' since the densities invoked may lead to slow convergence of the integrals (which are still
 #' quite accurate) which causes R to throw an error.
 #' @param .progress logical. if TRUE (default) a progress bar is drawn to the console.
 #'
-#' @return \code{predictWEV_Conf} returns a data frame/tibble with columns: condition, stimulus,
-#' response, rating, correct, p, info, err. p is the predicted probability of a response
-#' and rating, given the stimulus category and condition. Message and error refer to the
-#' respective outputs of the integration routine used for computation.
-#' \code{predictWEV_RT} returns a data frame/tibble with columns: condition, stimulus,
-#' response, rating, correct, rt and dens (and densscaled, if `scaled=TRUE`).
+#' @return \code{predictWEV_Conf} returns a `data.frame`/`tibble` with columns: `condition`, `stimulus`,
+#' `response`, `rating`, `correct`, `p`, `info`, `err`. `p` is the predicted probability of a response
+#' and `rating`, given the stimulus category and condition. `info` and `err` refer to the
+#' respective outputs of the integration routine used for the computation.
+#' \code{predictWEV_RT} returns a `data.frame`/`tibble` with columns: `condition`, `stimulus`,
+#' `response`, `rating`, `correct`, `rt` and `dens` (and `densscaled`, if `scaled=TRUE`).
 #'
 #'
 #' @details The function \code{predictWEV_Conf} consists merely of an integration of
 #' the response time density, \code{\link{dWEV}} and \code{\link{d2DSD}}, over the response time in a reasonable
-#' interval (\code{t0} to maxrt). The function \code{predictWEV_RT} wraps these density
+#' interval (\code{t0} to `maxrt`). The function \code{predictWEV_RT} wraps these density
 #' functions to a parameter set input and a data.frame output.
 #' For the argument \code{paramDf}, the output of the fitting function \code{\link{fitRTConf}}
 #' with the respective model may be used.
@@ -63,8 +64,7 @@
 #' not required in `paramDf` but set to 1 by default. All other parameters are used for all
 #' conditions.
 #'
-#' @references Hellmann, S., Zehetleitner, M., & Rausch, M. (preprint). Simultaneous modeling of choice,
-#' confidence and response time in visual perception. https://osf.io/9jfqr/
+#' @references Hellmann, S., Zehetleitner, M., & Rausch, M. (in press). Simultaneous modeling of choice, confidence and response time in visual perception. \emph{Psychological Review}. <https://osf.io/9jfqr/>
 #'
 #' Pleskac, T. J., & Busemeyer, J. R. (2010). Two-Stage Dynamic Signal Detection:
 #' A Theory of Choice, Decision Time, and Confidence, \emph{Psychological Review}, 117(3),
@@ -138,10 +138,10 @@
 #' @rdname predictWEV
 #' @export
 predictWEV_Conf <- function(paramDf, model="dynWEV",
-                                precision=1e-5,
-                                maxrt=15, subdivisions = 100L, simult_conf = FALSE,
+                            maxrt=15, subdivisions = 100L, simult_conf = FALSE,
                             stop.on.error = FALSE,
-                                .progress=TRUE){
+                            precision=1e-5,
+                            .progress=TRUE){
   if (model =="WEVmu") model <- "dynWEV"
   nConds <- length(grep(pattern = "^v[0-9]", names(paramDf), value = T))
   symmetric_confidence_thresholds <- length(grep(pattern = "thetaUpper", names(paramDf), value = T))<1
@@ -184,6 +184,7 @@ predictWEV_Conf <- function(paramDf, model="dynWEV",
   # but add the constant to maxrt
   maxrt <- maxrt + paramDf$st0
   paramDf$st0 <- 0
+  if (!("omega" %in% names(paramDf))) paramDf$omega <- 0
   if (.progress) {
     pb <- progress_bar$new(total = nConds*nRatings*4)
   }
@@ -211,14 +212,18 @@ predictWEV_Conf <- function(paramDf, model="dynWEV",
 ### Predict RT-distribution
 #' @rdname predictWEV
 #' @export
-predictWEV_RT <- function(paramDf, model="dynWEV", precision=1e-5,
+predictWEV_RT <- function(paramDf, model=NULL,
                                  maxrt=9, subdivisions = 100L, minrt=NULL,
                                   simult_conf = FALSE,
-                                 scaled = FALSE, DistConf=NULL,
+                                 scaled = FALSE, DistConf=NULL, precision=1e-5,
                                 .progress = TRUE) {
   if (scaled && is.null(DistConf)) {
     message(paste("scaled is TRUE and DistConf is NULL. The rating distribution will",
     " be computed, which will take additional time.", sep=""))
+  }
+  if (is.null(model)) {
+    if (!("model" %in% names(paramDf))) stop("Either supply model argument or model entry in paramDf argument.")
+    model <- paramDf$model
   }
   if (model =="WEVmu") model <- "dynWEV"
   nConds <- length(grep(pattern = "^v[0-9]", names(paramDf), value = T))
@@ -266,39 +271,38 @@ predictWEV_RT <- function(paramDf, model="dynWEV", precision=1e-5,
       thetas_lower <- paramDf$a- rev(thetas_upper)
     }
   }
-
+  if (!("omega" %in% names(paramDf))) paramDf$omega <- 0
   if (is.null(minrt)) minrt <- paramDf$t0
   df <- expand.grid(rt = seq(minrt, maxrt, length.out = subdivisions),
                     rating = 1:nRatings,
                     response=c("lower", "upper"),
                     stimulus=c(-1, 1),
                     condition = 1:nConds) %>%
-    mutate(vth1 = switch(1+as.numeric(model=="2DSD"),
-                         if_else(.data$response =="upper", thetas_upper[.data$rating], thetas_lower[(.data$rating)]),
-                         if_else(.data$response =="upper", thetas_upper[.data$rating], rev(thetas_lower)[(.data$rating+1)])),
-           vth2 = switch(1+as.numeric(model=="2DSD"),
-                         if_else(.data$response =="upper", thetas_upper[(.data$rating+1)], thetas_lower[(.data$rating+1)]),
-                         if_else(.data$response =="upper", thetas_upper[(.data$rating+1)], rev(thetas_lower)[(.data$rating)])))
+    mutate(vth1 = if_else(.data$response =="upper", thetas_upper[.data$rating], thetas_lower[(.data$rating)]),
+           vth2 = if_else(.data$response =="upper", thetas_upper[(.data$rating+1)], thetas_lower[(.data$rating+1)]))
   if (model=="dynWEV") {
     dens <- function(df) {
-      res <- with(paramDf, dWEV(df$rt, df$vth1,df$vth2,
-                    response=as.character(df$response), tau=tau, a=a,
-                    v = df$stimulus*V[df$condition],
-                    t0 = t0, z = z, sz = sz, st0=st0,
-                    sv = SV[df$condition], w=w, svis=svis, sigvis=sigvis,
-                    s = S[df$condition],
-                    simult_conf = simult_conf, z_absolute = FALSE, precision = precision))
+      res <- with(paramDf, dWEV(df$rt, response=as.character(df$response),
+                                df$vth1,df$vth2,
+                                a=a,
+                                v = df$stimulus*V[df$condition],
+                                t0 = t0, z = z, sz = sz, sv = SV[df$condition],
+                                st0=st0,tau=tau,
+                                 w=w, svis=svis, sigvis=sigvis, omega=omega,
+                                s = S[df$condition],
+                                simult_conf = simult_conf, z_absolute = FALSE, precision = precision))
       if (.progress) pb$tick()
       return(data.frame(rt=df$rt, dens=res))
     }
   } else if (model=="2DSD") {
     dens <- function(df) {
-      res <- with(paramDf, d2DSD(df$rt, df$vth1,df$vth2,
-                   response=as.character(df$response), tau=tau, a=a,
-                   v = df$stimulus*V[df$condition],
-                   t0 = t0, z = z, sz = sz, st0=st0,
-                   sv = SV[df$condition], s = S[df$condition],
-                   simult_conf = simult_conf, z_absolute = FALSE, precision = precision))
+      res <- with(paramDf, d2DSD(df$rt, response=as.character(df$response),
+                                 df$vth1,df$vth2,
+                                 tau=tau, a=a,
+                                 v = df$stimulus*V[df$condition],
+                                 t0 = t0, z = z, sz = sz, st0=st0,
+                                 sv = SV[df$condition], omega=omega,s = S[df$condition],
+                                 simult_conf = simult_conf, z_absolute = FALSE, precision = precision))
       if (.progress) pb$tick()
       return(data.frame(rt=df$rt, dens=res))
     }

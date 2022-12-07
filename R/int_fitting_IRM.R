@@ -121,7 +121,9 @@ fittingIRM <- function(df, nConds, nRatings, fixed, sym_thetas, time_scaled,
     inits[inits==-Inf]<- -1e6
     parnames <- c(paste("v", 1:nConds, sep=""), 'a', 'b', 't0', 'st0', fitted_weights, cols_theta)
     names(inits) <- setdiff(parnames, names(fixed))
+
   } else {
+
     ##### 1.2. For box-constraint optimisation algorithm span drifts and thresholds equidistantly
     if (nConds==1) {
       init_grid$v1 <- (init_grid$vmin+init_grid$vmax)/2
@@ -175,10 +177,10 @@ fittingIRM <- function(df, nConds, nRatings, fixed, sym_thetas, time_scaled,
   ### 2. Search initial grid before optimization  ####
   if (grid_search) {
     if (logging==TRUE) {
-      log_info(paste(length(inits[,1]), "...parameter sets to check"))
-      log_info(paste("data got ", nrow(df), " rows"))
+      logger::log_info(paste(length(inits[,1]), "...parameter sets to check"))
+      logger::log_info(paste("data got ", nrow(df), " rows"))
       t00 <- Sys.time()
-      log_info("Searching initial values ...")
+      logger::log_info("Searching initial values ...")
     }
 
     if (optim_method =="Nelder-Mead") {
@@ -212,7 +214,7 @@ fittingIRM <- function(df, nConds, nRatings, fixed, sym_thetas, time_scaled,
     logL <- as.numeric(logL)
     inits <- inits[order(logL),]
     if (logging==TRUE) {
-      log_success(paste("Initial grid search took...",as.character(round(as.double(difftime(Sys.time(),t00,units = "mins")), 2))," mins"))
+      logger::log_success(paste("Initial grid search took...",as.character(round(as.double(difftime(Sys.time(),t00,units = "mins")), 2))," mins"))
     }
   } else {
     logL <- NULL
@@ -227,7 +229,7 @@ fittingIRM <- function(df, nConds, nRatings, fixed, sym_thetas, time_scaled,
 
   #### 3. Optimization ####
   if (logging==TRUE) {
-    log_info("Start fitting ... ")
+    logger::log_info("Start fitting ... ")
   }
   if (!useparallel || (opts$nAttempts==1)) {
     noFitYet <- TRUE
@@ -272,12 +274,12 @@ fittingIRM <- function(df, nConds, nRatings, fixed, sym_thetas, time_scaled,
           stop(paste("Not implemented or unknown method: ", optim_method, ". Use 'bobyqa', Nelder-Mead' or 'L-BFGS-B' instead.", sep=""))
         }
         if (logging==TRUE) {
-          log_info(paste("Finished attempt No.", i, " restart no. ", l))
+          logger::log_info(paste("Finished attempt No.", i, " restart no. ", l))
         }
         if (!exists("m") || inherits(m, "try-error")){
           if (logging==TRUE) {
-            log_error(paste("No fit obtained at attempt No.", i))
-            log_error(paste("Used parameter set", paste(start, sep="", collapse=" "), sep=" ", collapse = ""))
+            logger::log_error(paste("No fit obtained at attempt No.", i))
+            logger::log_error(paste("Used parameter set", paste(start, sep="", collapse=" "), sep=" ", collapse = ""))
           }
           break
         }
@@ -286,7 +288,7 @@ fittingIRM <- function(df, nConds, nRatings, fixed, sym_thetas, time_scaled,
             fit <- m
             noFitYet <- FALSE
             if (logging==TRUE) {
-              log_info(paste("First fit obtained at attempt No.", i))
+              logger::log_info(paste("First fit obtained at attempt No.", i))
               attempt <- i
               save(logL, inits,  df,fit, attempt,file=filename)
             }
@@ -294,7 +296,7 @@ fittingIRM <- function(df, nConds, nRatings, fixed, sym_thetas, time_scaled,
           } else if (m$value < fit$value) {
             fit <- m
             if (logging==TRUE) {
-              log_info(paste("New fit at attempt No.", i, " restart no. ", l))
+              logger::log_info(paste("New fit at attempt No.", i, " restart no. ", l))
               attempt <- i
               save(logL, inits,  df,fit, attempt,file=filename)
             }
@@ -486,7 +488,7 @@ fittingIRM <- function(df, nConds, nRatings, fixed, sym_thetas, time_scaled,
     res$AICc <- 2 * fit$value + k * 2 + 2*k*(k-1)/(N-k-1)
     res$AIC <- 2 * fit$value + k * 2
     if (logging==TRUE) {
-      log_success("Done fitting and autosaved results")
+      logger::log_success("Done fitting and autosaved results")
       save(logL, df, res, file=filename)
     }
   }

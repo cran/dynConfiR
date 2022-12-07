@@ -3,7 +3,8 @@
 #' This function is a wrapper of the function \code{\link{fitConfModel}} (see
 #' there for more information). It calls the function for every possible combination
 #' of model and participant in `model` and \code{data} respectively.
-#' Also, see \code{\link{dWEV}}, \code{\link{d2DSD}}, and \code{\link{dRM}} for more
+#' Also, see \code{\link{dWEV}}, \code{\link{d2DSD}}, \code{\link{dDDMConf}},
+#' and \code{\link{dRM}} for more
 #' information about the parameters.
 #'
 #' @param data a `data.frame` where each row is one trial, containing following
@@ -17,15 +18,16 @@
 #'   * \code{response} (encoding the decision response),
 #'   * \code{correct} (encoding whether the decision was correct; values in 0, 1)
 #'   * \code{sbj} (giving the subject ID; the models given in the second argument are fitted for each
-#'   subject individually. (Furthermore, logging == TRUE, the ID is used in autosave files and logging messages.))
+#'   subject individually. (Furthermore, if `logging = TRUE`, the ID is used in files
+#'   saved with interim results and logging messages.))
 #' @param models character vector with following possible elements "dynWEV", "2DSD", "IRM", "PCRM", "IRMt", and "PCRMt"  for the models to be fit.
 #' @param nRatings integer. Number of rating categories. If `NULL`, the maximum of
 #' `rating` and `length(unique(rating))` is used. This argument is especially
 #' important for data sets where not the whole range of rating categories is realized.
 #' If given, ratings has to be given as factor or integer.
 #' @param fixed list. List with parameter value pairs for parameters that should not be fitted. (see Details).
-#' @param restr_tau numerical or Inf or "simult_conf". Used for 2DSD and dynWEV only. Upper bound for tau.
-#' Fits will be in the interval (0,restr_tau). If FALSE tau will be unbound. For "simult_conf", see the documentation of
+#' @param restr_tau numerical or `Inf` or `"simult_conf"`. Used for 2DSD and dynWEV only. Upper bound for tau.
+#' Fits will be in the interval (0,`restr_tau`). If `FALSE` tau will be unbound. For `"simult_conf"`, see the documentation of
 #' \code{\link{d2DSD}} and \code{\link{dWEV}}
 #' @param grid_search logical. If `FALSE`, the grid search before the optimization
 #' algorithm is omitted. The fitting is then started with a mean parameter set
@@ -38,32 +40,34 @@
 #' (See \code{\link[minqa]{bobyqa}} for more information.) The first two use a
 #' box-constraint optimization. For Nelder-Mead a transfinite function rescaling is used
 #' (i.e. the constrained arguments are suitably transformed to the whole real line).
-#' @param logging logical. If `TRUE`, a folder autosave/fit**model** is created and
+#' @param logging logical. If `TRUE`, a folder 'autosave/fit**model**' is created and
 #' messages about the process are printed in a logging file and to console (depending
-#' on OS). Additionally intermediate results are saved in a .RData file with the
+#' on OS). Additionally intermediate results are saved in a `.RData` file with the
 #' participant ID in the name.
-#' @param parallel "models", "single", "both" or FALSE. If FALSE no parallelization
+#' @param parallel "models", "single", "both" or `FALSE`. If `FALSE` no parallelization
 #' is used in the fitting process. If "models" the fitting process is parallelized over
 #' participants and models (i.e. over the calls for fitting functions). If "single"
 #' parallelization is used within the fitting processes (over initial grid search and
 #' optimization processes for different start points, but see \code{\link{fitRTConf}}).
 #' If "both", parallelization is done hierarchical. For small number of
 #' models and participants "single" or "both" is preferable. Otherwise, you may use "models".
-#' @param n.cores integer vector or NULL. If \code{parallel} is "models" or "both", a single
+#' @param precision numerical scalar. For 2DSD and dynWEV only. Precision of calculation.
+#' (in the respective models) for the density functions (see \code{\link{dWEV}} for more information).
+#' @param n.cores integer vector or `NULL`. If \code{parallel} is "models" or "single", a single
 #' integer for the number of cores used for parallelization is required. If
 #' \code{parallel} is "both", two values are required. The first for the number of parallel
 #' model-participant combinations and the second for the parallel processes within the
 #' fitting procedures (this may be specified
-#' to match the \code{nAttemps}-Value in the \code{opts} argument. If NULL (default)
+#' to match the \code{nAttemps}-Value in the \code{opts} argument. If `NULL` (default)
 #' the number of available cores -1 is used.
-#' If NULL and \code{parallel} is "both", the cores will be used for
+#' If `NULL` and \code{parallel} is "both", the cores will be used for
 #' model-participant-parallelization, only.
 #' @param ... Possibility of giving alternative variable names in data frame
 #' (in the form \code{condition = "SOA"}, or \code{response="pressedKey"}).
 #'
 #' @return Gives data frame with rows for each model-participant combination and columns for the different parameters
-#' as fitted result as well as additional information about the fit (negLogLik (for final parameters),
-#' k (number of parameters), N (number of data rows), BIC, AICc and AIC)
+#' as fitted result as well as additional information about the fit (`negLogLik` (for final parameters),
+#' `k` (number of parameters), `N` (number of data rows), `BIC`, `AICc` and `AIC`)
 #'
 #' @details The fitting involves a first grid search through an initial grid. Then the best \code{nAttempts}
 #' parameter sets are chosen for an optimization, which is done with an algorithm, depending on the argument
@@ -85,7 +89,7 @@
 #'
 #'  \strong{opts}. A list with numerical values. Possible options are listed below (together with the optimization method they are used for).
 #'  * \code{nAttempts} (all) number of best performing initial parameter sets used for optimization; default 5
-#'  * \code{nRestarts} (all) number of successive optim routines for each of the starting parameter sets; default 5,
+#'  * \code{nRestarts} (all) number of successive `optim` routines for each of the starting parameter sets; default 5,
 #'  * \code{maxfun} (\code{'bobyqa'}) maximum number of function evaluations; default: 5000,
 #'  * \code{maxit} (\code{'Nelder-Mead' and 'L-BFGS-B'}) maximum iterations; default: 2000,
 #'  * \code{reltol} (\code{'Nelder-Mead'}) relative tolerance; default:  1e-6),
@@ -93,8 +97,7 @@
 #'
 #' @md
 #'
-#' @references Hellmann, S., Zehetleitner, M., & Rausch, M. (preprint). Simultaneous modeling of choice,
-#' confidence and response time in visual perception. https://osf.io/9jfqr#'
+#' @references Hellmann, S., Zehetleitner, M., & Rausch, M. (in press). Simultaneous modeling of choice, confidence and response time in visual perception. \emph{Psychological Review}. <https://osf.io/9jfqr/>
 #'
 #' @author Sebastian Hellmann.
 #'
@@ -153,9 +156,10 @@
 fitRTConfModels <- function(data, models = c("dynWEV", "2DSD"),
                       nRatings = NULL, fixed = list(sym_thetas = FALSE), restr_tau=Inf,
                       grid_search=TRUE,
-                      opts=list(), optim_method = "bobyqa", logging=FALSE,
+                      opts=list(), optim_method = "bobyqa", logging=FALSE, precision=1e-5,
                       parallel = TRUE, n.cores=NULL, ...){ #  ?ToDO: vary_sv=FALSE, RRT=NULL, vary_tau=FALSE
-  if (!all(models %in% c("IRM", "PCRM", "IRMt", "PCRMt", "dynWEV", "2DSD"))) stop("model must be 'dynWEV', '2DSD', 'IRM', 'PCRM', 'IRMt', or 'PCRMt'")
+  if (!all(models %in% c("IRM", "PCRM", "IRMt", "PCRMt",
+                         "dynWEV", "2DSD", "DDMConf"))) stop("model must be 'dynWEV', '2DSD', 'DDMConf', 'IRM', 'PCRM', 'IRMt', or 'PCRMt'")
 
   ### Maybe later: use ...-argument für renaming data-columns and to pass other arguments
   # colrenames <- c(...)
@@ -265,7 +269,7 @@ fitRTConfModels <- function(data, models = c("dynWEV", "2DSD"),
     data_part <- subset(data, sbj==cur_sbj)
     res <- fitRTConf(data_part, model = cur_model,
               nRatings = nRatings, fixed = fixed, restr_tau =restr_tau,
-              grid_search = grid_search,
+              grid_search = grid_search, precision=precision,
               logging=logging, opts=opts, optim_method = optim_method,
               useparallel = parallel.single, n.cores=n.cores.single)
     res$model <- cur_model
@@ -284,7 +288,7 @@ fitRTConfModels <- function(data, models = c("dynWEV", "2DSD"),
     clmodels <- makeCluster(type="SOCK", n.cores.models)
     clusterExport(clmodels, c("data", "fixed", "nRatings", "restr_tau", "models",
                               "logging", "opts", "optim_method", "grid_search",
-                              "parallel.single", "n.cores.single",
+                              "parallel.single", "n.cores.single", "precision",
                               "outnames", "call_fitfct"), envir = environment())
     on.exit(try(stopCluster(clmodels), silent = TRUE))
     res <- clusterApplyLB(clmodels, listjobs, fun=call_fitfct)
@@ -295,6 +299,9 @@ fitRTConfModels <- function(data, models = c("dynWEV", "2DSD"),
   }
   # bind list-outout together into data.frame
   res <- do.call(rbind, res)
+
+  res[[sbjcol]] <- res$sbj
+  res$sbj  <- NULL
 
   # finally, drop columns with unnecessary parameters
   res <- res[,apply(res, 2, function(X) any(!is.na(X)))]

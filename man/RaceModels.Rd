@@ -9,23 +9,28 @@
 \alias{rIRM}
 \alias{rPCRM}
 \alias{racemodels}
+\alias{dIRM2}
 \title{Independent and partially anti-correlated Race Model for Decision Confidence}
 \usage{
 dIRM(rt, response = 1, mu1, mu2, a, b, th1, th2, wx = 1, wrt = 0,
-  wint = 0, t0 = 0, st0 = 0, s = 1, time_scaled = TRUE,
-  step_width = NULL)
+  wint = 0, t0 = 0, st0 = 0, s1 = 1, s2 = 1, s = NULL,
+  time_scaled = TRUE, step_width = NULL)
+
+dIRM2(rt, response = 1, mu1, mu2, a, b, th1, th2, wx = 1, wrt = 0,
+  wint = 0, t0 = 0, st0 = 0, s1 = 1, s2 = 1, smu1 = 0, smu2 = 0,
+  sza = 0, szb = 0, s = NULL, time_scaled = TRUE, step_width = NULL)
 
 dPCRM(rt, response = 1, mu1, mu2, a, b, th1, th2, wx = 1, wrt = 0,
-  wint = 0, t0 = 0, st0 = 0, s = 1, time_scaled = TRUE,
-  step_width = NULL)
+  wint = 0, t0 = 0, st0 = 0, s1 = 1, s2 = 1, s = NULL,
+  time_scaled = TRUE, step_width = NULL)
 
 rIRM(n, mu1, mu2, a, b, wx = 1, wrt = 0, wint = 0, t0 = 0, st0 = 0,
-  s = 1, time_scaled = TRUE, step_width = NULL, delta = 0.01,
-  maxrt = 15)
+  s1 = 1, s2 = 1, s = NULL, smu1 = 0, smu2 = 0, sza = 0, szb = 0,
+  time_scaled = TRUE, step_width = NULL, delta = 0.01, maxrt = 15)
 
 rPCRM(n, mu1, mu2, a, b, wx = 1, wrt = 0, wint = 0, t0 = 0, st0 = 0,
-  s = 1, time_scaled = TRUE, step_width = NULL, delta = 0.01,
-  maxrt = 15)
+  s1 = 1, s2 = 1, s = NULL, smu1 = 0, smu2 = 0, sza = 0, szb = 0,
+  time_scaled = TRUE, step_width = NULL, delta = 0.01, maxrt = 15)
 }
 \arguments{
 \item{rt}{a numeric vector of RTs. For convenience also a \code{data.frame} with
@@ -47,27 +52,41 @@ boundary first.}
 \item{th2}{numeric. Upper bound of interval range for the confidence measure.}
 
 \item{wx}{numeric. Weight on losing accumulator for the computation of the confidence measure.
-(Used only if time_scale==TRUE, Default = 1)}
+(Used only if \code{time_scale=TRUE},  1)}
 
 \item{wrt}{numeric. Weight on reaction time for the computation of the confidence measure.
-(Used only if time_scale==TRUE, Default wrt=0)}
+(Used only if \code{time_scale=TRUE}, Default 0)}
 
 \item{wint}{numeric. Weight on the interaction of losing accumulator and reaction time for
-the computation of the confidence measure. (Used only if time_scale==TRUE,
-Default wint=0)}
+the computation of the confidence measure. (Used only if \code{time_scale=TRUE},
+Default 0)}
 
 \item{t0}{numeric. Lower bound of non-decision time component in observable response times.
-Range: t0>=0. Default: t0=0.}
+Range: \code{t0>=0}. Default: 0.}
 
-\item{st0}{numeric. Range of a uniform distribution for non-decision time. Range: st0>=0.
-Default: st0=0.}
+\item{st0}{numeric. Range of a uniform distribution for non-decision time. Range: \code{st0>=0}.
+Default: 0.}
 
-\item{s}{numeric. Diffusion constant of the two accumulators.  Usually fixed to 1 for most
-purposes as it scales other parameters (see Details). Range: s>0, Default: s=1.}
+\item{s1}{numeric. Diffusion constant of the first accumulator.  Usually fixed to 1 for most
+purposes as it scales other parameters (see Details). Range: \code{s1>0}, Default: 1.}
+
+\item{s2}{numeric. Diffusion constant of the second accumulator.  Usually fixed to 1 for most
+purposes as it scales other parameters (see Details). Range: \code{s2>0}, Default: 1.}
+
+\item{s}{numeric. Alternative way to specify diffusion constants, if both are assumed to be equal.
+If both (\code{s1}, \code{s2} and \code{s}) are given, only \code{s1} and \code{s2} will be used.}
 
 \item{time_scaled}{logical. Whether the confidence measure should be time-dependent. See Details.}
 
 \item{step_width}{numeric. Step size for the integration in t0 (motor time). Default: 1e-6.}
+
+\item{smu1}{numeric. Between-trial variability in the drift rate of the first accumulator.}
+
+\item{smu2}{numeric. Between-trial variability in the drift rate of the second accumulator.}
+
+\item{sza}{numeric. Between-trial variability in starting point of the first accumulator.}
+
+\item{szb}{numeric. Between-trial variability in starting point of the second accumulator.}
 
 \item{n}{integer. The number of samples generated.}
 
@@ -97,7 +116,7 @@ decisions and confidence judgments in the independent Race Model
 (\code{dIRM}/\code{rIRM}) or partially (anti-)correlated Race Model (\code{dPCRM}/\code{rPCRM}),
 i.e. the probability of a given response (response: winning accumulator
 (1 or 2)) at a given time (rt) and the confidence measure in the interval
-between th1 and th2 (Hellmann et al., preprint). The definition of the
+between \code{th1} and \code{th2} (Hellmann et al., in press). The definition of the
 confidence measure depends on the argument \code{time_scaled} (see Details).
 The computations are based on Moreno-Bote (2010).
 The parameters for the models are \code{mu1} and \code{mu2} for the drift
@@ -121,7 +140,7 @@ Balance of Evidence hypothesis (if \code{time_scaled=FALSE}), i.e. if \code{resp
 \deqn{conf = b - X_2(T)}{conf = b - X2(T)}.
 Otherwise, if \code{time_scaled=TRUE} (default), confidence is computed as linear combination of
 Balance of Evidence, decision time, and an interaction term, i.e.
-\deqn{conf = wx (b-X_2 (T)) + wrt\frac{1}{\sqrt{T}} + wint\frac{b-X_2(T)}{\sqrt{T}}.}{conf = wx (b-X2(T)) + wrt/\sqrt{T} + wint (b-X2(T))\sqrt{T}.}
+\deqn{conf = wx (b-X_2 (T)) + wrt\frac{1}{\sqrt{T}} + wint\frac{b-X_2(T)}{\sqrt{T}}.}{conf = wx (b-X2(T)) + wrt/\sqrt{T} + wint (b-X2(T))/\sqrt{T}.}
 Usually the weights (\code{wx}, \code{wrt}, \code{wint}) should sum to 1, as the confidence thresholds
 (\code{th1} and \code{th2}) may be scaled according to their sum. If this is not the case, they will be scaled
 accordingly internally! Usually, this formula results in lower confidence when the reaction time is
@@ -139,8 +158,11 @@ set to 0.
 }
 \note{
 Similarly to the drift diffusion models (like \code{ddiffusion} and
-\code{\link{dWEV}}), s is a scaling factor (scales: \code{mu1},\code{mu2}, \code{a},\code{b},
-\code{th1},\code{th2},and \code{wrt}) and is usually fixed to 1.
+\code{\link{dWEV}}), \code{s1} and \code{s2} are scaling factors (\code{s1} scales: \code{mu1} and  \code{a},
+\code{s2} scales: \code{mu2} and \code{b}, and depending on response: if \code{response=2}, \code{s1} scales
+\code{th1},\code{th2},and \code{wrt}), otherwise \code{s2} is the scaling factor. It is sometimes
+assumed (Moreno-Bote, 2010), that both noise terms are equal, then they should definitely be
+fixed for fitting.
 }
 \examples{
 # Plot rt distribution ignoring confidence
@@ -160,16 +182,30 @@ df2 <- rPCRM(5000,  mu1=0.2, mu2=-0.2, a=1, b=1, t0=0.1,
              wint = 0.2, wrt=0.8)
 head(df1)
 
-# s scales other decision relevant parameters
-dPCRM(df1[1:5,], 2, mu1=0.2, mu2=-0.2, a=1, b=1, th1=0, th2=Inf, t0=0.1)
-s <- 2
-dPCRM(df1[1:5,], 2, mu1=0.2*s, mu2=-0.2*s, a=1*s, b=1*s, th1=0, th2=Inf, t0=0.1, s=s)
-# s also scales confidence parameters
-dPCRM(df1[1:5,], 2, mu1=0.2, mu2=-0.2, a=1, b=1,
+# Compute density with rt and response as separate arguments
+dPCRM(seq(0, 2, by =0.4), response= 2, mu1=0.2, mu2=-0.2, a=1, b=1, th1=0.5,
+         th2=2, wx = 0.3, wint=0.4, wrt=0.1, t0=0.1)
+# Compute density with rt and response in data.frame argument
+df1 <- subset(df1, response !=0) # drop trials where no accumulation hit its boundary
+dPCRM(df1[1:5,], mu1=0.2, mu2=-0.2, a=1, b=1, th1=0, th2=Inf, t0=0.1)
+# s1 and s2 scale other decision relevant parameters
+ s <- 2  # common (equal) standard deviation
+dPCRM(df1[1:5,], mu1=0.2*s, mu2=-0.2*s, a=1*s, b=1*s, th1=0, th2=Inf, t0=0.1, s1=s, s2=s)
+s1 <- 2  # different standard deviations
+s2 <- 1.5
+dPCRM(df1[1:5,], mu1=0.2*s1, mu2=-0.2*s2, a=1*s1, b=1*s2, th1=0, th2=Inf, t0=0.1, s1=s1, s2=s2)
+
+
+# s1 and s2 scale also confidence parameters
+df1[1:5,]$response <- 2   # set response to 2
+# for confidence it is important to scale confidence parameters with
+# the right variation parameter (the one of the loosing accumulator)
+dPCRM(df1[1:5,], mu1=0.2, mu2=-0.2, a=1, b=1,
      th1=0.5, th2=2, wx = 0.3, wint=0.4, wrt=0.1, t0=0.1)
-s <- 2
-dPCRM(df1[1:5,], 2, mu1=0.2*s, mu2=-0.2*s, a=1*s, b=1*s,
-     th1=0.5*s, th2=2*s, wx = 0.3, wint=0.4, wrt=0.1*s, t0=0.1, s=s)
+dPCRM(df1[1:5,], mu1=0.2*s1, mu2=-0.2*s2, a=1*s1, b=1*s2,
+      th1=0.5, th2=2, wx = 0.3/s1, wint = 0.4/s1, wrt = 0.1, t0=0.1, s1=s1, s2=s2)
+dPCRM(df1[1:5,], mu1=0.2*s1, mu2=-0.2*s2, a=1*s1, b=1*s2,
+      th1=0.5*s1, th2=2*s1, wx = 0.3, wint = 0.4, wrt = 0.1*s1, t0=0.1, s1=s1, s2=s2)
 
 two_samples <- rbind(cbind(df1, ws="BoE"),
                    cbind(df2, ws="RT"))
@@ -192,11 +228,10 @@ dPCRM(df1[1:5,], th1=0, th2=1,mu1=0.2, mu2=-0.2, a=1, b=1, t0=0.1,wx = 1 )
 
 }
 \references{
-Hellmann, S., Zehetleitner, M., & Rausch, M. (preprint). Simultaneous modeling of choice,
-confidence and response time in visual perception. https://osf.io/9jfqr/
+Hellmann, S., Zehetleitner, M., & Rausch, M. (in press). Simultaneous modeling of choice, confidence and response time in visual perception. \emph{Psychological Review}. \url{https://osf.io/9jfqr/}
 
 Moreno-Bote, R. (2010). Decision confidence and uncertainty in diffusion models with partially
-correlated neuronal integrators. Neural Computation, 22(7), 1786–1811. https://doi.org/10.1162/neco.2010.12-08-930
+correlated neuronal integrators. Neural Computation, 22(7), 1786–1811. doi:10.1162/neco.2010.12-08-930
 }
 \author{
 Sebastian Hellmann

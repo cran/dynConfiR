@@ -39,13 +39,27 @@ static double integrate_v_over_zr_WEVmu (Parameters *params, double a, double b,
 
 
 // Main calls
-NumericVector density_WEVmu (NumericVector rts, int boundary)
+NumericVector density_WEVmu (NumericVector rts, int boundary, int stopon0)
 {
     int length = rts.length();
     NumericVector out(length);
-    if (boundary == 1) { for (int i = 0; i < length; i++) { out[i] =  g_plus_WEVmu(rts[i]);  } } // Calc upper
-                  else { for (int i = 0; i < length; i++) { out[i] = -g_minus_WEVmu(rts[i]); } } // Calc lower
-
+    if (stopon0 == 1) {
+      if (boundary == 1) {
+        for (int i = 0; i < length; i++) {
+          out[i] =  g_plus_WEVmu(rts[i]);
+          if (out[i]==0) break;
+        }
+      } // Calc upper
+      else {
+        for (int i = 0; i < length; i++) {
+          out[i] = -g_minus_WEVmu(rts[i]);
+          if (out[i]==0) break;
+        }
+      } // Calc lower
+    } else {
+      if (boundary == 1) { for (int i = 0; i < length; i++) { out[i] =  g_plus_WEVmu(rts[i]); } } // Calc upper
+      else { for (int i = 0; i < length; i++) { out[i] = -g_minus_WEVmu(rts[i]); } } // Calc lower
+    }
     return out;
 }
 
@@ -116,7 +130,8 @@ static double integral_v_g_minus_WEVmu (double t, double zr, Parameters *params)
     double muvis = params->muvis;
     double svis2 = params->svis*params->svis;
     double sigvis2 = params->sigvis*params->sigvis;
-    double q = params->q_WEV;
+    double w = params->w;
+    double omega = params->omega;
 
 
 
@@ -135,9 +150,16 @@ static double integral_v_g_minus_WEVmu (double t, double zr, Parameters *params)
 
     // Compute the integral w.r.t. the confidence variable c:
     ttau = t+tau;
-    Mu = q*(ttau)*muvis + (v-sv*sv*a*zr)/(sv2t);
-    Sigma = sqrt(1/tau + sv*sv/sv2t + q*q*(ttau*svis2 + ttau*ttau*sigvis2));
-    int_c = Phi((th2-Mu)/Sigma) - Phi((th1-Mu)/Sigma);
+    Mu = (ttau*(1-w)*muvis - w*(tau*v-a*zr*(sv*sv*ttau+1))/(sv2t)) ;
+    Sigma = sqrt(( w*w*tau* (1+ tau*sv*sv/sv2t) + (1-w)*(1-w)*(ttau*svis2 + ttau*ttau*sigvis2)));
+    if (omega > 0)
+    {
+      int_c = Phi((th2*pow(ttau, omega)-Mu)/Sigma) - Phi((th1*pow(ttau, omega)-Mu)/Sigma);
+    }
+    else
+    {
+      int_c = Phi((th2-Mu)/Sigma) - Phi((th1-Mu)/Sigma);
+    }
 
     Rcpp::checkUserInterrupt();
 
