@@ -89,11 +89,9 @@
 #' @author Sebastian Hellmann.
 #'
 #' @name predictRTConfModels
-#' @importFrom dplyr rename
 #' @import parallel
 # @importFrom pracma integral
 #' @aliases predictConfModels
-#' @importFrom Rcpp evalCpp
 #'
 #' @examples
 #' # First example for 2 participant and the "dynWEV" model
@@ -147,8 +145,8 @@ predictConfModels <- function(paramDf,
   models <- unique(paramDf$model)
   if (is.null(models)) stop("model column missing in paramDf")
   if (!is.numeric(maxrt)) stop("maxrt must be numeric")
-  if (!all(models %in% c("IRM", "PCRM", "IRMt", "PCRMt", "dynWEV", "2DSD",  "DDMConf"))) {
-    stop("model must be 'dynWEV', '2DSD', 'DDMConf', 'IRM', 'PCRM', 'IRMt', or 'PCRMt'")
+  if (!all(grepl("dynWEV|2DSD|IRM|PCRM|DDMConf|dynaViTE", models))) {
+    stop("model must contain 'dynaViTE', 'dynWEV', '2DSD', 'DDMConf', 'IRM', 'PCRM', 'IRMt', or 'PCRMt'")
   }
   sbjcol <- c("subject", "participant", "sbj")[which(c("subject", "participant", "sbj") %in% names(paramDf))]
   if (length(sbjcol)==0) {
@@ -183,6 +181,7 @@ predictConfModels <- function(paramDf,
   }
 
   jobs <- expand.grid(model=1:length(models), sbj=subjects)
+  if (nrow(jobs) < nJobs) stop("model and participant don't produce distinct rows!\nThere should be only one row per participant and model combination")
 
   if (parallel) {
     listjobs <- list()
@@ -226,8 +225,8 @@ predictRTModels <- function(paramDf,
   if (!is.numeric(maxrt)) stop("maxrt must be numeric")
   models <- unique(paramDf$model)
   if (is.null(models)) stop("model column missing in paramDf")
-  if (!all(models %in% c("IRM", "PCRM", "IRMt", "PCRMt", "dynWEV", "2DSD", "DDMConf"))) {
-    stop("model must be 'dynWEV',  '2DSD',  'DDMConf', 'IRM', 'PCRM', 'IRMt', or 'PCRMt'")
+  if (!all(grepl("dynWEV|2DSD|IRM|PCRM|DDMConf|dynaViTE", models))) {
+    stop("model must contain 'dynaViTE', 'dynWEV', '2DSD', 'DDMConf', 'IRM', 'PCRM', 'IRMt', or 'PCRMt'")
   }
   sbjcol <- c("subject", "participant", "sbj")[which(c("subject", "participant", "sbj") %in% names(paramDf))]
   if (length(sbjcol)==0) {
@@ -278,7 +277,7 @@ predictRTModels <- function(paramDf,
   if (is.null(minrt)) {
     minrt <- min(paramDf$t0)
     if (simult_conf && any(c("2DSD", "dynWEV") %in% models)) {
-      pars_diffmodels <- filter(paramDf, .data$model %in% c("2DSD", "dynWEV"))
+      pars_diffmodels <- paramDf[paramDf$model %in% c("2DSD", "dynWEV"),]
       minrt <- min(minrt, pars_diffmodels$t0+pars_diffmodels$tau)
     }
   }
@@ -303,6 +302,7 @@ predictRTModels <- function(paramDf,
     return(res)
   }
   jobs <- expand.grid(model=1:length(models), sbj=subjects)
+  if (nrow(jobs) < nJobs) stop("model and participant don't produce distinct rows!\nThere should be only one row per participant and model combination")
 
   if (parallel) {
     listjobs <- list()

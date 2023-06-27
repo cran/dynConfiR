@@ -44,14 +44,6 @@
 #' `dynConfiR` package can be used. In the context of confidence models grouping factors
 #' often used are conditions, correct/incorrect answers and confidence ratings.
 #'
-#' @references Pleskac, T. J., & Busemeyer, J. R. (2010). Two-Stage Dynamic Signal Detection:
-#' A Theory of Choice, Decision Time, and Confidence, \emph{Psychological Review}, 117(3),
-#' 864-901. doi:10.1037/a0019737
-#'
-#' Rausch, M., Hellmann, S., & Zehetleitner, M. (2018). Confidence in masked orientation
-#' judgments is informed by both evidence and visibility. \emph{Attention, Perception, &
-#' Psychophysics}, 80(1), 134–154.  doi: 10.3758/s13414-017-1431-5
-#'
 #'
 #' @author Sebastian Hellmann.
 #'
@@ -133,7 +125,7 @@ PDFtoQuantiles <- function(pdf_df, p = c(.1,.3,.5,.7,.9),
   if ("densscaled" %in% names(pdf_df)) pdf_df$densscaled <- NULL
 
   temp <- pdf_df %>% select(-c("rt", "dens")) %>%
-    group_by(across()) %>% summarise(N=n())
+    group_by(pick(everything())) %>% summarise(N=n(), .groups = "drop")
   if (min(temp$N) < 100) {
     warning(paste("There are only", min(temp$N), "rows for at least one subgroup of the data set.",
                   "\nConsider refining the rt-grid for more accurate computations."))
@@ -153,7 +145,6 @@ PDFtoQuantiles <- function(pdf_df, p = c(.1,.3,.5,.7,.9),
       select(-c("dens"))
   }
 
-
   pdf_df <- pdf_df %>% group_by(pdf_df[, setdiff(names(pdf_df), c("rt", "densscaled", "dt"))]) %>%
     mutate(cdfscaled= cumsum(.data$densscaled*.data$dt)) %>%
     select(-"densscaled", - "dt")
@@ -162,7 +153,7 @@ PDFtoQuantiles <- function(pdf_df, p = c(.1,.3,.5,.7,.9),
       summarise(cdfscaled = mean(.data$cdfscaled))
   }
   pdf_df <- pdf_df %>% group_by(pdf_df[, setdiff(names(pdf_df), c("rt", "cdfscaled"))]) %>%
-    summarise(CDFtoQuantiles(.data$cdfscaled, .data$rt, p = p))
+    reframe(CDFtoQuantiles(.data$cdfscaled, .data$rt, p = p))
 
   pdf_df
 }

@@ -70,7 +70,7 @@ information).
 \description{
 Simulates the decision responses, reaction times and state of the loosing accumulator
 together with a discrete confidence judgment  in the independent and partially anti-correlated
-race model (IRM and PCRM) (Hellmann et al., in press), given specific parameter constellations.
+race model (IRM and PCRM) (Hellmann et al., 2023), given specific parameter constellations.
 See \link{RaceModels} for more information about
 parameters. Also computes the Gamma rank correlation between the confidence
 ratings and condition (task difficulty), reaction times and accuracy in the
@@ -102,7 +102,7 @@ paramDf <- data.frame(a=2,b=2, v1=0.5, v2=1, t0=0.1,st0=0,
                       theta1=4)
 
 # 2. Simulate trials for both stimulus categories and all conditions (2)
-simus <- simulateRM(paramDf, n=300,model="PCRM", time_scaled=TRUE)
+simus <- simulateRM(paramDf, n=30,model="PCRM", time_scaled=TRUE)
 head(simus)
 # equivalent:
 simus <- simulateRM(paramDf, model="PCRMt")
@@ -119,7 +119,7 @@ simus <- simulateRM(paramDf, model="PCRMt")
 # automatically aggregate simulation distribution
 # to get only accuracy x confidence rating distribution for
 # all conditions
-agg_simus <- simulateRM(paramDf, n = 200, model="PCRMt", agg_simus = TRUE)
+agg_simus <- simulateRM(paramDf, n = 20, model="PCRMt", agg_simus = TRUE)
 head(agg_simus)
 \donttest{
   agg_simus$rating <- factor(agg_simus$rating, labels=c("unsure", "sure"))
@@ -139,7 +139,7 @@ head(agg_simus)
 
 }
 \references{
-Hellmann, S., Zehetleitner, M., & Rausch, M. (in press). Simultaneous modeling of choice, confidence and response time in visual perception. \emph{Psychological Review}. \url{https://osf.io/9jfqr/}
+Hellmann, S., Zehetleitner, M., & Rausch, M. (2023). Simultaneous modeling of choice, confidence and response time in visual perception. \emph{Psychological Review} 2023 Mar 13. doi: 10.1037/rev0000411. Epub ahead of print. PMID: 36913292.
 
 Kiani, R., Corthell, L., & Shadlen, M.N. (2014) Choice certainty is informed
 by both evidence and decision time.

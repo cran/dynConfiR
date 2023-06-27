@@ -1,20 +1,20 @@
-#' Prediction of Confidence Rating and Response Time Distribution in dynWEV
-#' and 2DSD confidence models
+#' Prediction of Confidence Rating and Response Time Distribution in dynaViTE,
+#' dynWEV, and 2DSD confidence models
 #'
 #' \code{predictWEV_Conf} predicts the categorical response distribution of
 #' decision and confidence ratings, \code{predictWEV_RT} computes the predicted
 #' RT distribution (density) in the 2DSD Model (Pleskac & Busemeyer, 2010) and the
-#' dynWEV model (Hellmann et al., in press), given specific parameter constellations.
+#' dynWEV model (Hellmann et al., 2023), given specific parameter constellations.
 #' See \code{\link{dWEV}} and \code{\link{d2DSD}} for more information about parameters.
 #'
 #' @param paramDf a list or dataframe with one row. Column names should match the names
-#' of \link{dynWEV} and \link{2DSD} model specific parameter names.
+#' of \link{dynaViTE} and \link{2DSD} model specific parameter names.
 #' For different stimulus quality/mean drift rates, names should be `v1`, `v2`, `v3`,....
 #' Different `sv` and/or `s` parameters are possible with `sv1`, `sv2`, `sv3`... (`s1`, `s2`, `s3`,...
 #' respectively) with equally many steps as for drift rates. Additionally, the confidence
 #' thresholds should be given by names with `thetaUpper1`, `thetaUpper2`,..., `thetaLower1`,... or,
 #' for symmetric thresholds only by `theta1`, `theta2`,....
-#' @param model character scalar. One of "dynWEV" or "2DSD".
+#' @param model character scalar. One of "dynaViTE", "dynWEV", or "2DSD".
 #' @param precision numerical scalar value. Precision of calculation. Corresponds to the
 #' step size of integration w.r.t. `z` and `t0`. Default is 1e-5.
 #' @param maxrt numeric. The maximum RT for the integration/density computation.
@@ -64,7 +64,7 @@
 #' not required in `paramDf` but set to 1 by default. All other parameters are used for all
 #' conditions.
 #'
-#' @references Hellmann, S., Zehetleitner, M., & Rausch, M. (in press). Simultaneous modeling of choice, confidence and response time in visual perception. \emph{Psychological Review}. <https://osf.io/9jfqr/>
+#' @references  Hellmann, S., Zehetleitner, M., & Rausch, M. (2023). Simultaneous modeling of choice, confidence and response time in visual perception. \emph{Psychological Review} 2023 Mar 13. doi: 10.1037/rev0000411. Epub ahead of print. PMID: 36913292.
 #'
 #' Pleskac, T. J., & Busemeyer, J. R. (2010). Two-Stage Dynamic Signal Detection:
 #' A Theory of Choice, Decision Time, and Confidence, \emph{Psychological Review}, 117(3),
@@ -75,13 +75,9 @@
 #'
 #' @name predictWEV
 #' @importFrom stats integrate
-#' @import dplyr
 #' @importFrom progress progress_bar
-#' @importFrom magrittr %>%
-#' @importFrom rlang .data
 # @importFrom pracma integral
 #' @aliases predictWEV predictdynWEV predict2DSD
-#' @importFrom Rcpp evalCpp
 #'
 #' @examples
 #' # Examples for "dynWEV" model (equivalent applicable for "2DSD" model (with less parameters))
@@ -137,12 +133,23 @@
 
 #' @rdname predictWEV
 #' @export
-predictWEV_Conf <- function(paramDf, model="dynWEV",
+predictWEV_Conf <- function(paramDf, model="dynaViTE",
                             maxrt=15, subdivisions = 100L, simult_conf = FALSE,
                             stop.on.error = FALSE,
                             precision=1e-5,
                             .progress=TRUE){
-  if (model =="WEVmu") model <- "dynWEV"
+  if (is.null(model)) {
+    if (!("model" %in% names(paramDf))) stop("Either supply model argument or model entry in paramDf argument.")
+    model <- paramDf$model
+  }
+  if (!("lambda" %in% names(paramDf))) {
+    if (model %in% c("dynaViTE", "2DSDT")) warning("No lambda specified in paramDf. lambda=0 used")
+    paramDf$lambda <- 0
+  }
+  if (model %in% c("WEVmu", "dynWEV")) model <- "dynaViTE"
+  if (grepl("2DSD", model)) model <- "2DSD"
+  if ("model" %in% names(paramDf)) paramDf$model <- NULL
+
   nConds <- length(grep(pattern = "^v[0-9]", names(paramDf), value = T))
   symmetric_confidence_thresholds <- length(grep(pattern = "thetaUpper", names(paramDf), value = T))<1
   if (symmetric_confidence_thresholds) {
@@ -150,7 +157,6 @@ predictWEV_Conf <- function(paramDf, model="dynWEV",
   } else {
     nRatings <- length(grep(pattern = "^thetaUpper[0-9]", names(paramDf)))+1
   }
-  vary_sv <-   length(grep(pattern = "^sv[0-9]", names(paramDf), value = T))>1
 
   if (nConds > 0 ) {
     V <- c(t(paramDf[,paste("v",1:(nConds), sep = "")]))
@@ -158,12 +164,22 @@ predictWEV_Conf <- function(paramDf, model="dynWEV",
     V <- paramDf$v
     nConds <- 1
   }
+  vary_s <-   length(grep(pattern = "^s[0-9]", names(paramDf), value = T))>1
+  if (vary_s){
+    S <- c(t((paramDf[,paste("s",1:(nConds), sep = "")])))
+  } else {
+    if ("s" %in% names(paramDf)) {
+      S <- rep(paramDf$s, nConds)
+    } else {
+      S <- rep(1, nConds)
+    }
+  }
+  vary_sv <-   length(grep(pattern = "^sv[0-9]", names(paramDf), value = T))>1
   if (vary_sv){
     SV <- c(t((paramDf[,paste("sv",1:(nConds), sep = "")])))
   } else {
     SV <- rep(paramDf$sv, nConds)
   }
-
   ## Recover confidence thresholds
   if (symmetric_confidence_thresholds) {
     thetas_upper <- c(-1e+32, t(paramDf[,paste("theta",1:(nRatings-1), sep = "")]), 1e+32)
@@ -183,25 +199,53 @@ predictWEV_Conf <- function(paramDf, model="dynWEV",
   # So, to speed up computations for high values of st0, we set it to 0
   # but add the constant to maxrt
   maxrt <- maxrt + paramDf$st0
-  paramDf$st0 <- 0
-  if (!("omega" %in% names(paramDf))) paramDf$omega <- 0
+
+  res <- expand.grid(condition = 1:nConds, stimulus=c("upper", "lower"),
+                     response=c("upper","lower"), rating = 1:nRatings,
+                     p=NA, info=NA, err=NA)
   if (.progress) {
     pb <- progress_bar$new(total = nConds*nRatings*4)
   }
-  res <- expand.grid(condition = 1:nConds, stimulus=c("upper", "lower"),
-                     response=c("upper","lower"), rating = 1:nRatings) %>%
-    group_by(.data$condition, .data$stimulus, .data$response, .data$rating) %>%
-    summarise(preddist(.data, thetas_lower = thetas_lower, thetas_upper = thetas_upper,
-                paramDf=paramDf, V=V, SV=SV, model=model,
-                precision=precision, simult_conf = simult_conf,
-                maxrt = maxrt, subdivisions=subdivisions,
-                stop.on.error = stop.on.error,
-                .progress=.progress, pb=pb))%>%
-    mutate(response = if_else(.data$response=="upper", 1, -1),
-           stimulus = if_else(.data$stimulus=="upper", 1, -1),
-           correct=as.numeric(.data$stimulus==.data$response)) %>%
-    ungroup() %>%
-    select(c("condition", "stimulus", "response", "correct", "rating", "p", "info", "err"))
+
+
+  for (i in 1:nrow(res)) {
+    row <- res[i,]
+    vth1 <- ifelse(row$response =="upper", thetas_upper[row$rating], thetas_lower[(row$rating)])
+    vth2 <- ifelse(row$response =="upper", thetas_upper[(row$rating+1)], thetas_lower[(row$rating+1)])
+     if (model == "dynaViTE") {
+    p <- integrate(function(rt) return(dWEV(rt, response=as.character(row$response),
+                                      vth1,vth2, a=paramDf$a,
+                                      v = (-1)^(row$stimulus=="lower")*V[row$condition],
+                                      t0 = paramDf$t0, z = paramDf$z, sz = paramDf$sz, sv = SV[row$condition],
+                                      st0=0, # we integrate over t, so this does not change results,
+                                      # but speeds up computations considerably
+                                      tau=paramDf$tau,
+                                       w=paramDf$w, svis=paramDf$svis, sigvis=paramDf$sigvis,
+                                      lambda=paramDf$lambda, s = S[row$condition],
+                                      simult_conf = simult_conf,
+                                      z_absolute = FALSE, precision = precision)),
+              lower=paramDf$t0, upper=maxrt, subdivisions = subdivisions,
+                 stop.on.error = stop.on.error)
+  } else {
+    p <- integrate(function(rt) return(d2DSD(rt, response=as.character(row$response),
+                                             vth1,vth2, a=paramDf$a,
+                                             v = (-1)^(row$stimulus=="lower")*V[row$condition],
+                                             t0 = paramDf$t0, z = paramDf$z, sz = paramDf$sz,
+                                             sv = SV[row$condition], st0=0, tau=paramDf$tau,
+                                             lambda=paramDf$lambda, s = S[row$condition],
+                                             simult_conf = simult_conf,
+                                             z_absolute = FALSE, precision = precision)),
+                   lower=paramDf$t0, upper=maxrt, subdivisions = subdivisions,
+                   stop.on.error = stop.on.error)
+  }
+  if (.progress) pb$tick()
+  res[i, 5:7] <- list(p = p$value, info = p$message, err = p$abs.error)
+  }
+
+  res$response <- 2*as.numeric(res$response=="upper")-1
+  res$stimulus <- 2*as.numeric(res$stimulus=="upper")-1
+  res$correct <- as.numeric(res$stimulus==res$response)
+  res <- res[c("condition", "stimulus", "response", "correct", "rating", "p", "info", "err")]
   # the last line is to sort the output columns
   # (to combine outputs from predictWEV_Conf and predictRM_Conf)
   res
@@ -225,7 +269,15 @@ predictWEV_RT <- function(paramDf, model=NULL,
     if (!("model" %in% names(paramDf))) stop("Either supply model argument or model entry in paramDf argument.")
     model <- paramDf$model
   }
-  if (model =="WEVmu") model <- "dynWEV"
+  if (!("lambda" %in% names(paramDf))) {
+    if (model %in% c("dynaViTE", "2DSDT")) warning("No lambda specified in paramDf. lambda=0 used")
+    paramDf$lambda <- 0
+  }
+  if (model %in% c("WEVmu", "dynWEV")) model <- "dynaViTE"
+  if (grepl("2DSD", model)) model <- "2DSD"
+  if ("model" %in% names(paramDf)) paramDf$model <- NULL
+
+
   nConds <- length(grep(pattern = "^v[0-9]", names(paramDf), value = T))
   symmetric_confidence_thresholds <- length(grep(pattern = "thetaUpper", names(paramDf), value = T))<1
   if (symmetric_confidence_thresholds) {
@@ -256,6 +308,7 @@ predictWEV_RT <- function(paramDf, model=NULL,
       S <- rep(1, nConds)
     }
   }
+
   ## Recover confidence thresholds
   if (symmetric_confidence_thresholds) {
     thetas_upper <- c(-1e+32, t(paramDf[,paste("theta",1:(nRatings-1), sep = "")]), 1e+32)
@@ -271,51 +324,15 @@ predictWEV_RT <- function(paramDf, model=NULL,
       thetas_lower <- paramDf$a- rev(thetas_upper)
     }
   }
-  if (!("omega" %in% names(paramDf))) paramDf$omega <- 0
+  if (!("lambda" %in% names(paramDf))) paramDf$lambda <- 0
+
   if (is.null(minrt)) minrt <- paramDf$t0
-  df <- expand.grid(rt = seq(minrt, maxrt, length.out = subdivisions),
+  rt = seq(minrt, maxrt, length.out = subdivisions)
+  df <- expand.grid(rt = rt,
                     rating = 1:nRatings,
-                    response=c("lower", "upper"),
-                    stimulus=c(-1, 1),
-                    condition = 1:nConds) %>%
-    mutate(vth1 = if_else(.data$response =="upper", thetas_upper[.data$rating], thetas_lower[(.data$rating)]),
-           vth2 = if_else(.data$response =="upper", thetas_upper[(.data$rating+1)], thetas_lower[(.data$rating+1)]))
-  if (model=="dynWEV") {
-    dens <- function(df) {
-      res <- with(paramDf, dWEV(df$rt, response=as.character(df$response),
-                                df$vth1,df$vth2,
-                                a=a,
-                                v = df$stimulus*V[df$condition],
-                                t0 = t0, z = z, sz = sz, sv = SV[df$condition],
-                                st0=st0,tau=tau,
-                                 w=w, svis=svis, sigvis=sigvis, omega=omega,
-                                s = S[df$condition],
-                                simult_conf = simult_conf, z_absolute = FALSE, precision = precision))
-      if (.progress) pb$tick()
-      return(data.frame(rt=df$rt, dens=res))
-    }
-  } else if (model=="2DSD") {
-    dens <- function(df) {
-      res <- with(paramDf, d2DSD(df$rt, response=as.character(df$response),
-                                 df$vth1,df$vth2,
-                                 tau=tau, a=a,
-                                 v = df$stimulus*V[df$condition],
-                                 t0 = t0, z = z, sz = sz, st0=st0,
-                                 sv = SV[df$condition], omega=omega,s = S[df$condition],
-                                 simult_conf = simult_conf, z_absolute = FALSE, precision = precision))
-      if (.progress) pb$tick()
-      return(data.frame(rt=df$rt, dens=res))
-    }
-  }
-  if (.progress) {
-    pb <- progress_bar$new(total = nConds*nRatings*4)
-  }
-
-  df <- df %>% group_by(df[,c("rating", "response", "stimulus", "condition")]) %>%
-    summarise(dens(.data))%>%
-    mutate(response = if_else(.data$response=="upper", 1, -1))
-
-
+                    response=c("upper", "lower"),
+                    stimulus=c("upper", "lower"),
+                    condition = 1:nConds, dens=NA)
   if (scaled) {
     ## Scale RT-density to integrate to 1 (for plotting together with simulations)
     # Therefore, divide the density by the probability of a
@@ -324,25 +341,70 @@ predictWEV_RT <- function(paramDf, model=NULL,
       DistConf <- predictWEV_Conf(paramDf, model, precision,
                                   maxrt = maxrt, subdivisions=subdivisions,
                                   simult_conf = simult_conf,
-                                  .progress = FALSE) %>%
-        ungroup()
+                                  .progress = FALSE)
     }
-    DistConf <- DistConf %>%
-      ungroup() %>%
-      select(c("rating", "response", "stimulus", "condition", "p"))
-    if (is.character(DistConf$response)) {
-      DistConf$response <- if_else(DistConf$response=="upper", 1, -1)
+    DistConf <- DistConf[,c("rating", "response", "stimulus", "condition", "p")]
+    if (!is.character(DistConf$response)) {
+      DistConf[DistConf$response==1, "response"] <- "upper"
+      DistConf[DistConf$response==-1, "response"] <- "lower"
     }
-    df <- df %>%
-      left_join(DistConf, by=c("response", "stimulus", "condition","rating")) %>%
-      mutate(densscaled = if_else(.data$p!=0, .data$dens/.data$p, 0)) %>%
-      select(-c("p"))
+    if (!is.character(DistConf$stimulus)) {
+      DistConf[DistConf$stimulus==1, "stimulus"] <- "upper"
+      DistConf[DistConf$stimulus==-1, "stimulus"] <- "lower"
+    }
+    df$densscaled <- NA
   }
-  df <- df %>% mutate(correct = as.numeric(.data$stimulus==.data$response)) %>%
-    ungroup() %>%
-    select(c("condition", "stimulus", "response", "correct", "rating",
-             "rt", "dens", rep("densscaled", as.numeric(scaled))))
+
+
+  if (.progress) {
+    pb <- progress_bar$new(total = nConds*nRatings*4)
+  }
+  for ( i in 1:(nRatings*2*2*nConds)) {
+    cur_row <- df[1+((i-1)*subdivisions),]
+    vth1 = ifelse(cur_row$response =="upper", thetas_upper[cur_row$rating], thetas_lower[(cur_row$rating)])
+    vth2 = ifelse(cur_row$response =="upper", thetas_upper[(cur_row$rating+1)], thetas_lower[(cur_row$rating+1)])
+    v <- V[cur_row$condition]*(-1)^(cur_row$stimulus=="lower")
+
+
+    if (model=="dynaViTE") {
+      df[(1:subdivisions) + subdivisions*(i-1), "dens"] <-
+        dWEV(rt, response=as.character(cur_row$response),
+             vth1,vth2,v = v,
+             tau=paramDf$tau, a=paramDf$a,
+             t0 = paramDf$t0, z = paramDf$z, sz = paramDf$sz, st0=paramDf$st0,
+             sv = SV[cur_row$condition], lambda=paramDf$lambda,s = S[cur_row$condition],
+             w=paramDf$w, svis=paramDf$svis, sigvis=paramDf$sigvis,
+             simult_conf = simult_conf, z_absolute = FALSE, precision = precision)
+    } else if (model=="2DSD") {
+      df[(1:subdivisions) + subdivisions*(i-1), "dens"] <-
+        d2DSD(rt, response=as.character(cur_row$response),
+              vth1,vth2,v = v,
+              tau=paramDf$tau, a=paramDf$a,
+              t0 = paramDf$t0, z = paramDf$z, sz = paramDf$sz, st0=paramDf$st0,
+              sv = SV[cur_row$condition], lambda=paramDf$lambda,s = S[cur_row$condition],
+              simult_conf = simult_conf, z_absolute = FALSE, precision = precision)
+    } else { stop("model must be IRM, IRMt, PCRM or PCRMt") }
+
+    if (scaled) {
+      P <- DistConf[DistConf$condition==cur_row$condition &
+                      DistConf$response==cur_row$response &
+                      DistConf$rating == cur_row$rating &
+                      DistConf$stimulus==cur_row$stimulus,]$p
+      if (P != 0) {
+        df[(1:subdivisions) + subdivisions*(i-1), "densscaled"] <-
+          df[(1:subdivisions) + subdivisions*(i - 1), "dens"]/P
+      } else {
+        df[(1:subdivisions) + subdivisions*(i-1), "densscaled"] <- 0
+      }
+    }
+    if (.progress) pb$tick()
+  }
+  df$response <- 2*as.numeric(df$response=="upper")-1
+  df$stimulus <- 2*as.numeric(df$stimulus=="upper")-1
+  df$correct <-  as.numeric(df$stimulus==df$response)
+  df <- df[,c("condition", "stimulus", "response", "correct", "rating",
+              "rt", "dens", rep("densscaled", as.numeric(scaled)))]
   # the last line is to sort the output columns
-  # (to combine outputs from predictWEV_RT and predictRM_RT)
+  # (to combine outputs from predictWEV_RT and predictDDMConf_RT)
   return(df)
 }

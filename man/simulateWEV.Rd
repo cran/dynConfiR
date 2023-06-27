@@ -7,11 +7,11 @@
 \usage{
 simulateWEV(paramDf, n = 10000, model = "dynWEV", simult_conf = FALSE,
   gamma = FALSE, agg_simus = FALSE, stimulus = c(-1, 1), delta = 0.01,
-  maxrt = 15, seed = NULL)
+  maxrt = 15, seed = NULL, process_results = FALSE)
 }
 \arguments{
 \item{paramDf}{a list or dataframe with one row. Column names should match the names
-of \link{dynWEV} and \link{2DSD} model specific parameter names. For different stimulus quality/mean
+of \link{dynaViTE} and \link{2DSD} model specific parameter names. For different stimulus quality/mean
 drift rates, names should be \code{v1}, \code{v2}, \code{v3},....
 Different \code{sv} and/or \code{s} parameters are possible with \code{sv1}, \code{sv2}, \code{sv3}... (\code{s1}, \code{s2}, \code{s3},...
 respectively) with equally many steps as for drift rates. Additionally, the confidence
@@ -21,7 +21,7 @@ for symmetric thresholds only by \code{theta1}, \code{theta2},....}
 \item{n}{integer. The number of samples (per condition and stimulus direction) generated.
 Total number of samples is \code{n*nConditions*length(stimulus)}.}
 
-\item{model}{character scalar. One of "dynWEV", or "2DSD".}
+\item{model}{character scalar. One of "dynaViTE", "dynWEV", or "2DSD".}
 
 \item{simult_conf}{logical. \code{TRUE}, if in the experiment confidence was reported simultaneously
 with the decision, as then decision and confidence judgment are assumed to have happened
@@ -50,13 +50,19 @@ If the simulation of the stochastic process exceeds a rt of \code{maxrt},
 the response will be set to 0 and \code{maxrt} will be returned as rt.}
 
 \item{seed}{numerical. Seeding for non-random data generation.}
+
+\item{process_results}{logical. Whether the output simulations should contain the final
+state of the decision (and visibility) process as additional column. Default is FALSE, meaning that
+no additional columns for the final process states are returned.}
 }
 \value{
 Depending on \code{gamma} and \code{agg_simus}.
 
 If \code{gamma} is \code{FALSE}, returns a \code{data.frame} with columns: \code{condition},
 \code{stimulus}, \code{response}, \code{correct}, \code{rt}, \code{conf} (the continuous confidence
-measure) and \code{rating} (the discrete confidence rating) or
+measure) and \code{rating} (the discrete confidence rating), and \code{dec} and \code{vis}
+(only if \code{process_results=TRUE}) for the final states of accumulators in the
+simulation or
 (if \code{agg_simus=TRUE}): \code{condition}, \code{stimulus},\code{response}, \code{correct},
 \code{rating} and \code{p} (for the probability of a response and rating, given
 the condition and stimulus).
@@ -68,8 +74,8 @@ information).
 }
 \description{
 Simulates the decision responses and reaction times together with a
-discrete confidence judgment in the 2DSD model (Pleskac & Busemeyer, 2010)
-and the dynWEV model (Hellmann et al., in press), given specific parameter constellations.
+discrete confidence judgment in the dynaViTE model, the 2DSD model (Pleskac & Busemeyer, 2010)
+and the dynWEV model (Hellmann et al., 2023), given specific parameter constellations.
 See \code{\link{dWEV}} and \code{\link{d2DSD}} for more information about parameters.
 Also computes the Gamma rank correlation between the confidence ratings and condition
 (task difficulty), reaction times and accuracy in the simulated output.
@@ -138,7 +144,7 @@ head(agg_simus)
 }
 }
 \references{
-Hellmann, S., Zehetleitner, M., & Rausch, M. (in press). Simultaneous modeling of choice, confidence and response time in visual perception. \emph{Psychological Review}. \url{https://osf.io/9jfqr/}
+Hellmann, S., Zehetleitner, M., & Rausch, M. (2023). Simultaneous modeling of choice, confidence and response time in visual perception. \emph{Psychological Review} 2023 Mar 13. doi: 10.1037/rev0000411. Epub ahead of print. PMID: 36913292.
 }
 \author{
 Sebastian Hellmann.

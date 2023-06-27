@@ -3,7 +3,7 @@
 #' \code{predictRM_Conf} predicts the categorical response distribution of
 #' decision and confidence ratings, \code{predictRM_RT} computes the
 #' RT distribution (density) in the independent and partially anti-correlated
-#' race models  (Hellmann et al., preprint), given specific parameter
+#' race models  (Hellmann et al., 2023), given specific parameter
 #' constellations. See \link{RaceModels} for more information about the models
 #' and parameters.
 #'
@@ -67,18 +67,15 @@
 #' \code{v}, and process variability \code{s}. All other parameters are used for all
 #' conditions.
 #'
+#' @references  Hellmann, S., Zehetleitner, M., & Rausch, M. (2023). Simultaneous modeling of choice, confidence and response time in visual perception. \emph{Psychological Review} 2023 Mar 13. doi: 10.1037/rev0000411. Epub ahead of print. PMID: 36913292.
 #'
 #' @author Sebastian Hellmann.
 #'
 #' @name predictRM
 #' @importFrom stats integrate
-#' @import dplyr
 #' @importFrom progress progress_bar
-#' @importFrom magrittr %>%
-#' @importFrom rlang .data
 # @importFrom pracma integral
 #' @aliases predictIRM predictPCRM
-#' @importFrom Rcpp evalCpp
 #'
 #' @examples
 #' # Examples for "PCRM" model (equivalent applicable for "IRM" model)
@@ -185,71 +182,67 @@ predictRM_Conf <- function(paramDf, model="IRM", time_scaled = FALSE,
       thetas_2 <- c(1e-32, t(paramDf[,paste("theta",1:(nRatings-1), sep = "")]), 1e+64)
     }
   } else {
-    thetas_1 <- c(1e-32, t(paramDf[,paste("thetaUpper",1:(nRatings-1), sep = "")]), 1e+64)
-    thetas_2 <- c(1e-32, t(paramDf[,paste("thetaLower",1:(nRatings-1), sep="")]), 1e+64)
+    thetas_1 <- c(1e-32, t(paramDf[,paste("thetaLower",1:(nRatings-1), sep = "")]), 1e+64)
+    thetas_2 <- c(1e-32, t(paramDf[,paste("thetaUpper",1:(nRatings-1), sep="")]), 1e+64)
   }
   # Because we integrate over the response time, st0 does not matter
   # So, to speed up computations for high values of st0, we set it to 0
   # but add the constant to maxrt
   maxrt <- maxrt + paramDf$st0
-  paramDf$st0 <- 0
+  a    = paramDf$a
+  b    = paramDf$b
+  wx   = paramDf$wx
+  wrt  = paramDf$wrt
+  wint = paramDf$wint
+  t0   = paramDf$t0
 
+  res <- expand.grid(condition = 1:nConds, stimulus=c(1,2),
+                       response=c(1,2), rating = 1:nRatings,
+                       p=NA, info=NA, err=NA)
   if (.progress) {
     pb <- progress_bar$new(total = nConds*nRatings*4)
   }
+  for (i in 1:nrow(res)) {
+    row <- res[i, ]
+    s    = S[row$condition]
+    th1  = ifelse(row$response == 1, thetas_1[(row$rating)], thetas_2[(row$rating)])
+    th2  = ifelse(row$response == 1, thetas_1[(row$rating+1)], thetas_2[(row$rating + 1)])
+    mu1  = V[row$condition]*(-1)^(1+row$stimulus)
+    mu2  = V[row$condition]*(-1)^(row$stimulus)
 
-  if (model=="IRM") {
-    help_fct <- function(row) {
+    if (model=="IRM") {
       p <- integrate(function(rt) return(dIRM(rt, response=row$response,
-                                              mu1=row$mu1, mu2 = row$mu2, s=row$s,
-                                              a = row$a, b=row$b,
-                                              wx = row$wx, wrt= row$wrt, wint = row$wint,
-                                              th1 = row$th1, th2=row$th2,
-                                              t0  = row$t0,
-                                              st0 = row$st0, time_scaled=time_scaled)),
+                                              mu1=mu1, mu2 = mu2, s=s,
+                                              a = a, b=b,
+                                              wx = wx, wrt= wrt, wint = wint,
+                                              th1 = th1, th2=th2,
+                                              t0  = t0,
+              # as we integrate over t0, setting st0=0  does not change results
+              # but speeds up the integration considerably
+                                              st0 = 0,
+                                              time_scaled=time_scaled)),
                      lower=paramDf$t0, upper=maxrt, subdivisions = subdivisions,
                      stop.on.error = stop.on.error)
-      if (.progress) pb$tick()
-      return(data.frame(p = p$value, info = p$message, err = p$abs.error))
-    }
-  } else {
-    help_fct <- function(row) {
+    } else {
       p <- integrate(function(rt) return(dPCRM(rt, response=row$response,
-                                               mu1=row$mu1, mu2 = row$mu2, s=row$s,
-                                               a = row$a, b=row$b,
-                                               wx = row$wx, wrt= row$wrt, wint = row$wint,
-                                               th1 = row$th1, th2=row$th2,
-                                               t0  = row$t0,
-                                               st0 = row$st0, time_scaled=time_scaled)),
+                                               mu1=mu1, mu2 = mu2, s=s,
+                                               a = a, b=b,
+                                               wx = wx, wrt= wrt, wint = wint,
+                                               th1 = th1, th2=th2,
+                                               t0  = t0,
+               # as we integrate over t0, setting st0=0  does not change results
+               # but speeds up the integration considerably
+                                               st0 = 0, time_scaled=time_scaled)),
                      lower=paramDf$t0, upper=maxrt, subdivisions = subdivisions,
                      stop.on.error = stop.on.error)
-      if (.progress) pb$tick()
-      return(data.frame(p = p$value, info = p$message, err = p$abs.error))
     }
+    if (.progress) pb$tick()
+    res[i, 5:7] <- list(p = p$value, info = p$message, err = p$abs.error)
   }
-
-
-  res <- expand.grid(condition = 1:nConds, stimulus=c(1,2),
-                     response=c(1,2), rating = 1:nRatings) %>%
-    mutate(a    = paramDf$a,
-           b    = paramDf$b,
-           s    = S[.data$condition],
-           th1  = if_else(.data$response == 1, thetas_1[(.data$rating)], thetas_2[(.data$rating)]),
-           th2  = if_else(.data$response == 1, thetas_1[(.data$rating+1)], thetas_2[(.data$rating + 1)]),
-           mu1  = V[.data$condition]*(-1)^(1+.data$stimulus),
-           mu2  = V[.data$condition]*(-1)^(.data$stimulus),
-           wx   = paramDf$wx,
-           wrt  = paramDf$wrt,
-           wint = paramDf$wint,
-           t0   = paramDf$t0,
-           st0  = paramDf$st0) %>%
-    group_by(.data$condition, .data$stimulus, .data$response, .data$rating) %>%
-    summarise(help_fct(cur_data_all()))%>%
-    mutate(correct=as.numeric(.data$stimulus==.data$response)) %>%
-    ungroup() %>%
-    select(c("condition", "stimulus", "response", "correct", "rating", "p", "info", "err"))
+  res$correct <- as.numeric(res$stimulus==res$response)
+  res <- res[c("condition", "stimulus", "response", "correct", "rating", "p", "info", "err")]
   # the last line is to sort the output columns
-  # (to combine outputs from predictWEV_Conf and predictRM_Conf)
+  # (to combine outputs from predictWEV_Conf and predictDDMConf_Conf)
   res
 }
 
@@ -315,54 +308,17 @@ predictRM_RT <- function(paramDf, model="IRM", time_scaled = FALSE,
       thetas_2 <- c(1e-32, t(paramDf[,paste("theta",1:(nRatings-1), sep = "")]), 1e+64)
     }
   } else {
-    thetas_1 <- c(1e-32, t(paramDf[,paste("thetaUpper",1:(nRatings-1), sep = "")]), 1e+64)
-    thetas_2 <- c(1e-32, t(paramDf[,paste("thetaLower",1:(nRatings-1), sep="")]), 1e+64)
+    thetas_1 <- c(1e-32, t(paramDf[,paste("thetaLower",1:(nRatings-1), sep = "")]), 1e+64)
+    thetas_2 <- c(1e-32, t(paramDf[,paste("thetaUpper",1:(nRatings-1), sep="")]), 1e+64)
   }
 
   if (is.null(minrt)) minrt <- paramDf$t0
-  df <- expand.grid(rt = seq(minrt, maxrt, length.out = subdivisions),
+  rt = seq(minrt, maxrt, length.out = subdivisions)
+  df <- expand.grid(rt = rt,
                     rating = 1:nRatings,
                     response=c(1,2),
                     stimulus=c(1,2),
-                    condition = 1:nConds) %>%
-    mutate(th1 = if_else(.data$response==1, thetas_1[(.data$rating)], thetas_2[(.data$rating)]),
-           th2 = if_else(.data$response==1, thetas_1[(.data$rating+1)], thetas_2[(.data$rating+1)]),
-           mu1 = V[.data$condition]*(-1)^(1+.data$stimulus),
-           mu2 = V[.data$condition]*(-1)^(.data$stimulus),
-           s = S[.data$condition])
-  if (.progress) {
-    pb <- progress_bar$new(total = nConds*nRatings*4)
-  }
-  if (grepl("IRM", model)) {
-    dens <- function(df) {
-      res <- dIRM(df$rt, df$response[1],
-                  mu1=df$mu1[1], mu2 = df$mu2[1], s=df$s[1],
-                  a = paramDf$a, b=paramDf$b,
-                  wx = paramDf$wx, wrt= paramDf$wrt, wint = paramDf$wint,
-                  th1 = df$th1[1], th2=df$th2[1],
-                  t0  = paramDf$t0,
-                  st0 = paramDf$st0, time_scaled=time_scaled)
-      if (.progress) pb$tick()
-      return(data.frame(rt=df$rt, dens=res))
-    }
-  } else if (grepl("PCRM", model)) {
-    dens <- function(df) {
-      res <- dPCRM(df$rt, df$response[1],
-                   mu1=df$mu1[1], mu2 = df$mu2[1], s=df$s[1],
-                   a = paramDf$a, b=paramDf$b,
-                   wx = paramDf$wx, wrt= paramDf$wrt, wint = paramDf$wint,
-                   th1 = df$th1[1], th2=df$th2[1],
-                   t0  = paramDf$t0,
-                   st0 = paramDf$st0, time_scaled=time_scaled)
-      if (.progress) pb$tick()
-      return(data.frame(rt=df$rt, dens=res))
-    }
-  } else { stop("model must be IRM, IRMt, PCRM or PCRMt") }
-
-  df <- df %>% group_by(df[,c("rating", "response", "stimulus", "condition")]) %>%
-    summarise(dens(.data))
-
-
+                    condition = 1:nConds, dens=NA)
   if (scaled) {
     ## Scale RT-density to integrate to 1 (for plotting together with simulations)
     # Therefore, divide the density by the probability of a
@@ -370,25 +326,63 @@ predictRM_RT <- function(paramDf, model="IRM", time_scaled = FALSE,
     if (is.null(DistConf)) {
       DistConf <- predictRM_Conf(paramDf, model, time_scaled,
                                  maxrt = maxrt, subdivisions=subdivisions,
-                                 .progress = FALSE) %>%
-        ungroup()
+                                 .progress = FALSE)
     }
-    DistConf <- DistConf %>%
-      ungroup() %>%
-      select(c("rating", "response", "stimulus", "condition", "p"))
-    if (is.character(DistConf$response)) {
-      DistConf$response <- as.integer(as.factor(DistConf$response))
-    }
-    df <- df %>%
-      left_join(DistConf, by=c("response", "stimulus", "condition","rating")) %>%
-      mutate(densscaled = if_else(.data$p!=0, .data$dens/.data$p, 0)) %>%
-      select(-c("p"))
+    DistConf <- DistConf[,c("rating", "response", "stimulus", "condition", "p")]
+    df$densscaled <- NA
   }
-  df <- df %>% mutate(correct = as.numeric(.data$stimulus==.data$response)) %>%
-    ungroup() %>%
-    select(c("condition", "stimulus", "response", "correct", "rating",
-             "rt", "dens", rep("densscaled", as.numeric(scaled))))
+
+
+  if (.progress) {
+    pb <- progress_bar$new(total = nConds*nRatings*4)
+  }
+  for ( i in 1:(nRatings*2*2*nConds)) {
+    cur_row <- df[1+((i-1)*subdivisions),]
+    th1 <- ifelse(cur_row$response==1, thetas_1[(cur_row$rating)], thetas_2[(cur_row$rating)])
+    th2 <- ifelse(cur_row$response==1, thetas_1[(cur_row$rating+1)], thetas_2[(cur_row$rating+1)])
+    mu1 <- V[cur_row$condition]*(-1)^(1+cur_row$stimulus)
+    mu2 <- V[cur_row$condition]*(-1)^(cur_row$stimulus)
+    s <- S[cur_row$condition]
+
+    if (grepl("IRM", model)) {
+      df[(1:subdivisions) + subdivisions*(i-1), "dens"] <-
+        dIRM(rt, cur_row$response,
+             mu1=mu1, mu2 = mu2, s=s,
+             a = paramDf$a, b=paramDf$b,
+             wx = paramDf$wx, wrt= paramDf$wrt, wint = paramDf$wint,
+             th1 = th1, th2=th2,
+             t0  = paramDf$t0,
+             st0 = paramDf$st0, time_scaled=time_scaled)
+    } else if (grepl("PCRM", model)) {
+      df[(1:subdivisions) + subdivisions*(i-1), "dens"] <-
+        dPCRM(rt, cur_row$response,
+              mu1=mu1, mu2 = mu2, s=s,
+              a = paramDf$a, b=paramDf$b,
+              wx = paramDf$wx, wrt= paramDf$wrt, wint = paramDf$wint,
+              th1 = th1, th2=th2,
+              t0  = paramDf$t0,
+              st0 = paramDf$st0, time_scaled=time_scaled)
+    } else { stop("model must be IRM, IRMt, PCRM or PCRMt") }
+
+    if (scaled) {
+      P <- DistConf[DistConf$condition==cur_row$condition &
+                      DistConf$response==cur_row$response &
+                      DistConf$rating == cur_row$rating &
+                      DistConf$stimulus==cur_row$stimulus,]$p
+      if (P != 0) {
+        df[(1:subdivisions) + subdivisions*(i-1), "densscaled"] <-
+          df[(1:subdivisions) + subdivisions*(i - 1), "dens"]/P
+      } else {
+        df[(1:subdivisions) + subdivisions*(i-1), "densscaled"] <- 0
+      }
+    }
+    if (.progress) pb$tick()
+  }
+
+  df$correct <-  as.numeric(df$stimulus==df$response)
+  df <- df[,c("condition", "stimulus", "response", "correct", "rating",
+              "rt", "dens", rep("densscaled", as.numeric(scaled)))]
   # the last line is to sort the output columns
-  # (to combine outputs from predictWEV_RT and predictRM_RT)
+  # (to combine outputs from predictWEV_RT and predictDDMConf_RT)
   return(df)
 }

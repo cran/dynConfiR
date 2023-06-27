@@ -9,6 +9,10 @@ d_WEVmu <- function(rts, params, precision = 1e-5, boundary = 2L, stop_on_error 
     .Call(`_dynConfiR_d_WEVmu`, rts, params, precision, boundary, stop_on_error, stop_on_zero)
 }
 
+d_DDMConf <- function(rts, params, precision = 1e-5, boundary = 2L, stop_on_error = TRUE, stop_on_zero = FALSE, st0precision = 0.01) {
+    .Call(`_dynConfiR_d_DDMConf`, rts, params, precision, boundary, stop_on_error, stop_on_zero, st0precision)
+}
+
 d_IRM <- function(rts, params, win = 1L, step_width = 0.0001) {
     .Call(`_dynConfiR_d_IRM`, rts, params, win, step_width)
 }
@@ -33,8 +37,8 @@ r_RM <- function(n, params, rho, delta = 0.01, maxT = 9) {
     .Call(`_dynConfiR_r_RM`, n, params, rho, delta, maxT)
 }
 
-r_WEV <- function(n, params, model, delta = 0.01, maxT = 9, stop_on_error = TRUE) {
-    .Call(`_dynConfiR_r_WEV`, n, params, model, delta, maxT, stop_on_error)
+r_WEV <- function(n, params, delta = 0.01, maxT = 9, stop_on_error = TRUE) {
+    .Call(`_dynConfiR_r_WEV`, n, params, delta, maxT, stop_on_error)
 }
 
 r_RM_Kiani <- function(n, params, rho, Bl, delta = 0.01, maxT = 9) {
@@ -43,10 +47,6 @@ r_RM_Kiani <- function(n, params, rho, Bl, delta = 0.01, maxT = 9) {
 
 r_LCA <- function(n, params, delta = 0.01, maxT = 9.0) {
     .Call(`_dynConfiR_r_LCA`, n, params, delta, maxT)
-}
-
-d_DDMConf <- function(rts, params, precision = 1e-5, boundary = 2L, stop_on_error = TRUE, stop_on_zero = FALSE, st0precision = 0.01) {
-    .Call(`_dynConfiR_d_DDMConf`, rts, params, precision, boundary, stop_on_error, stop_on_zero, st0precision)
 }
 
 r_DDMConf <- function(n, params, delta = 0.01, maxT = 9, stop_on_error = TRUE) {

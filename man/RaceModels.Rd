@@ -116,7 +116,7 @@ decisions and confidence judgments in the independent Race Model
 (\code{dIRM}/\code{rIRM}) or partially (anti-)correlated Race Model (\code{dPCRM}/\code{rPCRM}),
 i.e. the probability of a given response (response: winning accumulator
 (1 or 2)) at a given time (rt) and the confidence measure in the interval
-between \code{th1} and \code{th2} (Hellmann et al., in press). The definition of the
+between \code{th1} and \code{th2} (Hellmann et al., 2023). The definition of the
 confidence measure depends on the argument \code{time_scaled} (see Details).
 The computations are based on Moreno-Bote (2010).
 The parameters for the models are \code{mu1} and \code{mu2} for the drift
@@ -218,7 +218,8 @@ boxplot(conf~ws+response, data=two_samples)
 if (requireNamespace("ggplot2", quietly = TRUE)) {
 require(ggplot2)
 ggplot(two_samples, aes(x=rt, y=conf))+
-  stat_density_2d(aes(fill = ..density..), geom = "raster", contour = FALSE, h=c(0.3, 0.7)) +
+  stat_density_2d(aes(fill = after_stat(density)),
+                  geom = "raster", contour = FALSE, h=c(0.3, 0.7)) +
   xlim(c(0.2, 1.3))+ ylim(c(0, 2.5))+
   facet_grid(cols=vars(ws), rows=vars(response), labeller = "label_both")
 }
@@ -228,7 +229,7 @@ dPCRM(df1[1:5,], th1=0, th2=1,mu1=0.2, mu2=-0.2, a=1, b=1, t0=0.1,wx = 1 )
 
 }
 \references{
-Hellmann, S., Zehetleitner, M., & Rausch, M. (in press). Simultaneous modeling of choice, confidence and response time in visual perception. \emph{Psychological Review}. \url{https://osf.io/9jfqr/}
+Hellmann, S., Zehetleitner, M., & Rausch, M. (2023). Simultaneous modeling of choice, confidence and response time in visual perception. \emph{Psychological Review} 2023 Mar 13. doi: 10.1037/rev0000411. Epub ahead of print. PMID: 36913292.
 
 Moreno-Bote, R. (2010). Decision confidence and uncertainty in diffusion models with partially
 correlated neuronal integrators. Neural Computation, 22(7), 1786–1811. doi:10.1162/neco.2010.12-08-930

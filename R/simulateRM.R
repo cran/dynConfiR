@@ -2,7 +2,7 @@
 #'
 #' Simulates the decision responses, reaction times and state of the loosing accumulator
 #' together with a discrete confidence judgment  in the independent and partially anti-correlated
-#' race model (IRM and PCRM) (Hellmann et al., in press), given specific parameter constellations.
+#' race model (IRM and PCRM) (Hellmann et al., 2023), given specific parameter constellations.
 #' See \link{RaceModels} for more information about
 #' parameters. Also computes the Gamma rank correlation between the confidence
 #' ratings and condition (task difficulty), reaction times and accuracy in the
@@ -66,7 +66,7 @@
 #' @note Different parameters for different conditions are only allowed for drift rate, \code{v},
 #' and process variability, \code{s}. All other parameters are used for all conditions.
 #'
-#' @references Hellmann, S., Zehetleitner, M., & Rausch, M. (in press). Simultaneous modeling of choice, confidence and response time in visual perception. \emph{Psychological Review}. <https://osf.io/9jfqr/>
+#' @references  Hellmann, S., Zehetleitner, M., & Rausch, M. (2023). Simultaneous modeling of choice, confidence and response time in visual perception. \emph{Psychological Review} 2023 Mar 13. doi: 10.1037/rev0000411. Epub ahead of print. PMID: 36913292.
 #'
 #' Kiani, R., Corthell, L., & Shadlen, M.N. (2014) Choice certainty is informed
 #' by both evidence and decision time.
@@ -79,6 +79,7 @@
 #' @importFrom magrittr %>%
 #' @importFrom rlang .data
 #' @importFrom stats runif
+#' @importFrom Rcpp evalCpp
 # @importFrom pracma integral
 #' @aliases simulateIRM simulatePCRM
 #'
@@ -90,7 +91,7 @@
 #'                       theta1=4)
 #'
 #' # 2. Simulate trials for both stimulus categories and all conditions (2)
-#' simus <- simulateRM(paramDf, n=300,model="PCRM", time_scaled=TRUE)
+#' simus <- simulateRM(paramDf, n=30,model="PCRM", time_scaled=TRUE)
 #' head(simus)
 #' # equivalent:
 #' simus <- simulateRM(paramDf, model="PCRMt")
@@ -107,7 +108,7 @@
 #' # automatically aggregate simulation distribution
 #' # to get only accuracy x confidence rating distribution for
 #' # all conditions
-#' agg_simus <- simulateRM(paramDf, n = 200, model="PCRMt", agg_simus = TRUE)
+#' agg_simus <- simulateRM(paramDf, n = 20, model="PCRMt", agg_simus = TRUE)
 #' head(agg_simus)
 #' \donttest{
 #'   agg_simus$rating <- factor(agg_simus$rating, labels=c("unsure", "sure"))
@@ -181,21 +182,21 @@ simulateRM <- function (paramDf, n=1e+4,  model = "IRM", time_scaled=FALSE,
     }
   }
   df <- expand.grid(condition = 1:nConds, stimulus=stimulus)
-  help_fct <- function(row) {
-    res <- as.data.frame(r_RM(n,c(row$mu1, row$mu2, -paramDf$a, -paramDf$b, row$s, paramDf$t0, paramDf$st0),
-                              rho = ifelse(model=="IRM", 0, -.5),
-                              delta=delta, maxT=maxrt))
-    names(res) <- c("rt", "response", "xl")
-    res
-  }
   ## Produce process outcomes and compute confidence measure
-  simus <- df %>%
-    mutate(mu1 = if_else(.data$stimulus==1, V[.data$condition], -V[.data$condition]),
-           mu2 = if_else(.data$stimulus==1, -V[.data$condition], V[.data$condition]),
-           s = S[.data$condition]) %>%
-    group_by(.data$condition, .data$stimulus) %>%
-    summarise(help_fct(.data)) %>%
-    mutate(xj = if_else(.data$response==1, paramDf$b, paramDf$a) + .data$xl)
+  simus <- data.frame()
+  for ( i in 1:nrow(df)) {
+    mu1 <- (-1)^(1+df[i,]$stimulus==1) * V[df[i,]$condition]
+    temp <- as.data.frame(r_RM(n,c(mu1, -mu1,
+                   -paramDf$a, -paramDf$b,
+                   S[df[i,]$condition],S[df[i,]$condition],
+                   0,0,0,0),
+                   rho = ifelse(model=="IRM", 0, -.5),
+                   delta=delta, maxT=maxrt))
+    names(temp) <- c("rt", "response", "xl")
+    simus <- rbind(simus,
+                 cbind(condition=df[i, "condition"], stimulus=df[i, "stimulus"], temp))
+  }
+  simus$xj <- if_else(simus$response==1, paramDf$b, paramDf$a) + simus$xl
   if (time_scaled) {
     simus$conf <- -paramDf$wx*simus$xl + (paramDf$wrt / sqrt(simus$rt)) - paramDf$wint * (simus$xl / sqrt(simus$rt))
   } else {
@@ -214,9 +215,9 @@ simulateRM <- function (paramDf, n=1e+4,  model = "IRM", time_scaled=FALSE,
     }
     if (agg_simus) {
       simus <- simus %>% group_by(.data$correct, .data$condition) %>%
-        summarise(p = n()/(2*n)) %>%
+        summarise(p = n()/(2*n), .groups = "drop") %>%
         full_join(y=expand.grid(condition=1:nConds,
-                                correct=c(0,1))) %>%
+                                correct=c(0,1)), by=join_by("correct","condition")) %>%
         mutate(p = ifelse(is.na(.data$p), 0, .data$p))
     } else {
       simus <- simus[c("condition", "stimulus", "response", "correct", "rt","xj")]
@@ -252,26 +253,21 @@ simulateRM <- function (paramDf, n=1e+4,  model = "IRM", time_scaled=FALSE,
 
   if (gamma==TRUE) {
     gamma_condition <- simus %>% group_by(.data$correct) %>%
-      summarise(data.frame(t(Hmisc::rcorr.cens(.data$rating,S=.data$condition, outx=TRUE)))) %>%
-      select(.data$correct, Gamma = .data$Dxy)
+      summarise(Gamma=c(t(Hmisc::rcorr.cens(.data$rating,S=.data$condition, outx=TRUE)))[2])
     gamma_rt <- simus %>% group_by(.data$correct) %>%
-      summarise(data.frame(t(Hmisc::rcorr.cens(.data$rating,S=.data$rt, outx=TRUE))))%>%
-      select(.data$correct, Gamma = .data$Dxy)
+      summarise(Gamma=c(t(Hmisc::rcorr.cens(.data$rating,S=.data$rt, outx=TRUE)))[2])
     gamma_correct <- simus %>% group_by(.data$condition) %>%
-      summarise(data.frame(t(Hmisc::rcorr.cens(.data$rating,S=.data$correct, outx=TRUE))))%>%
-      select(.data$condition, Gamma = .data$Dxy)
+      summarise(Gamma=c(t(Hmisc::rcorr.cens(.data$rating,S=.data$correct, outx=TRUE)))[2])
     gamma_rt_bycondition <- simus %>% group_by(.data$condition) %>%
-      summarise(data.frame(t(Hmisc::rcorr.cens(.data$rating,S=.data$rt, outx=TRUE))))%>%
-      select(.data$condition, Gamma = .data$Dxy)
+      summarise(Gamma=c(t(Hmisc::rcorr.cens(.data$rating,S=.data$rt, outx=TRUE)))[2])
     gamma_rt_byconditionbycorrect <- simus %>% group_by(.data$condition, .data$correct) %>%
-      summarise(data.frame(t(Hmisc::rcorr.cens(.data$rating,S=.data$rt, outx=TRUE))))%>%
-      select(.data$condition, Gamma = .data$Dxy)
+      summarise(Gamma=c(t(Hmisc::rcorr.cens(.data$rating,S=.data$rt, outx=TRUE)))[2])
   }
   if (agg_simus) {
     simus <- simus %>% group_by(.data$rating, .data$correct, .data$condition) %>%
       summarise(p = n()/(2*n)) %>%
       full_join(y=expand.grid(rating=1:nRatings, condition=1:nConds,
-                              correct=c(0,1))) %>%
+                              correct=c(0,1)), by=join_by("rating", "condition", "correct")) %>%
       mutate(p = ifelse(is.na(.data$p), 0, .data$p))
   } else {
     simus <- simus[c("condition", "stimulus", "response", "correct", "rt","xj",  "conf", "rating")]
@@ -332,20 +328,18 @@ rRM_Kiani <- function (paramDf, n=1e+4, time_scaled=FALSE,
   }
 
   df <- expand.grid(condition = 1:nConds, stimulus=stimulus)
-  help_fct <- function(row) {
-    res <- as.data.frame(r_RM_Kiani(n,c(row$mu1, row$mu2, paramDf$a, paramDf$b, paramDf$s, paramDf$t0, paramDf$st0),
-                                    paramDf$rho, paramDf$Bl,
-                                    delta=delta, maxT=maxrt))
-    names(res) <- c("rt", "response", "xl")
-    res
-  }
   ## Produce process outcomes and compute confidence measure
-  simus <- df %>%
-    mutate(mu1 = if_else(.data$stimulus==1, V[.data$condition], -V[.data$condition]),
-           mu2 = if_else(.data$stimulus==1, -V[.data$condition], V[.data$condition])) %>%
-    group_by(.data$condition, .data$stimulus) %>%
-    summarise(help_fct(.data)) %>%
-    mutate(xj = .data$xl)
+  simus <- data.frame()
+  for ( i in 1:nrow(df)) {
+    mu1 <- (-1)^(1+df[i,]$stimulus==1) * V[df[i,]$condition]
+    temp <- as.data.frame(r_RM_Kiani(n,c(mu1, -mu1, paramDf$a, paramDf$b, paramDf$s, paramDf$t0, paramDf$st0),
+                                     paramDf$rho, paramDf$Bl,
+                                     delta=delta, maxT=maxrt))
+    names(temp) <- c("rt", "response", "xl")
+    simus <- rbind(simus,
+                   cbind(condition=df[i, "condition"], stimulus=df[i, "stimulus"], temp))
+  }
+  simus$xj <-simus$xl
   if (time_scaled) {
     simus$conf <- -paramDf$wx*simus$xl + (paramDf$wrt / sqrt(simus$rt)) - paramDf$wint * (simus$xl / sqrt(simus$rt))
   } else {
@@ -367,7 +361,7 @@ rRM_Kiani <- function (paramDf, n=1e+4, time_scaled=FALSE,
       simus <- simus %>% group_by(.data$correct, .data$condition) %>%
         summarise(p = n()/(2*n)) %>%
         full_join(y=expand.grid(condition=1:nConds,
-                                correct=c(0,1))) %>%
+                                correct=c(0,1)), by=join_by("condition", "correct")) %>%
         mutate(p = ifelse(is.na(.data$p), 0, .data$p))
     } else {
       simus <- simus[c("condition", "stimulus", "response", "correct", "rt","xj")]
@@ -402,26 +396,21 @@ rRM_Kiani <- function (paramDf, n=1e+4, time_scaled=FALSE,
 
   if (gamma==TRUE) {
     gamma_condition <- simus %>% group_by(.data$correct) %>%
-      summarise(data.frame(t(Hmisc::rcorr.cens(.data$rating,S=.data$condition, outx=TRUE)))) %>%
-      select(.data$correct, Gamma = .data$Dxy)
+      summarise(Gamma=c(t(Hmisc::rcorr.cens(.data$rating,S=.data$condition, outx=TRUE)))[2])
     gamma_rt <- simus %>% group_by(.data$correct) %>%
-      summarise(data.frame(t(Hmisc::rcorr.cens(.data$rating,S=.data$rt, outx=TRUE))))%>%
-      select(.data$correct, Gamma = .data$Dxy)
+      summarise(Gamma=c(t(Hmisc::rcorr.cens(.data$rating,S=.data$rt, outx=TRUE)))[2])
     gamma_correct <- simus %>% group_by(.data$condition) %>%
-      summarise(data.frame(t(Hmisc::rcorr.cens(.data$rating,S=.data$correct, outx=TRUE))))%>%
-      select(.data$condition, Gamma = .data$Dxy)
+      summarise(Gamma=c(t(Hmisc::rcorr.cens(.data$rating,S=.data$correct, outx=TRUE)))[2])
     gamma_rt_bycondition <- simus %>% group_by(.data$condition) %>%
-      summarise(data.frame(t(Hmisc::rcorr.cens(.data$rating,S=.data$rt, outx=TRUE))))%>%
-      select(.data$condition, Gamma = .data$Dxy)
+      summarise(Gamma=c(t(Hmisc::rcorr.cens(.data$rating,S=.data$rt, outx=TRUE)))[2])
     gamma_rt_byconditionbycorrect <- simus %>% group_by(.data$condition, .data$correct) %>%
-      summarise(data.frame(t(Hmisc::rcorr.cens(.data$rating,S=.data$rt, outx=TRUE))))%>%
-      select(.data$condition, Gamma = .data$Dxy)
+      summarise(Gamma=c(t(Hmisc::rcorr.cens(.data$rating,S=.data$rt, outx=TRUE)))[2])
   }
   if (agg_simus) {
     simus <- simus %>% group_by(.data$rating, .data$correct, .data$condition) %>%
       summarise(p = n()/(2*n)) %>%
       full_join(y=expand.grid(rating=1:nRatings, condition=1:nConds,
-                              correct=c(0,1))) %>%
+                              correct=c(0,1)), by=join_by("rating", "condition", "correct")) %>%
       mutate(p = ifelse(is.na(.data$p), 0, .data$p))
   } else {
     simus <- simus[c("condition", "stimulus", "response", "correct", "rt","xj",  "conf", "rating")]

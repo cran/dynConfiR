@@ -188,7 +188,7 @@ dDDMConf(dfu, th1=0.5, th2=2.5, a=2*s, v=.5*s, s=2, st0=2)[1:5]
 if (requireNamespace("ggplot2", quietly = TRUE)) {
   require(ggplot2)
   ggplot(dfu, aes(x=rt, y=conf))+
-    stat_density_2d(aes(fill = ..density..), geom = "raster", contour = FALSE) +
+    stat_density_2d(aes(fill = after_stat(density)), geom = "raster", contour = FALSE) +
     facet_wrap(~response)
 }
 boxplot(conf~response, data=dfu)
@@ -205,7 +205,7 @@ dDDMConf(dfu[1:5,], th1=1, th2=0, a=2, v=0.5, stop_on_error = FALSE)
 \references{
 Ratcliff, R., & McKoon, G. (2008). The diffusion decision model: Theory and data for two-choice decision tasks. \emph{Neural Computation}, 20(4), 873-922.
 
-Hellmann, S., Zehetleitner, M., & Rausch, M. (in press). Simultaneous modeling of choice, confidence and response time in visual perception. \emph{Psychological Review}.
+Hellmann, S., Zehetleitner, M., & Rausch, M. (2023). Simultaneous modeling of choice, confidence and response time in visual perception. \emph{Psychological Review} 2023 Mar 13. doi: 10.1037/rev0000411. Epub ahead of print. PMID: 36913292.
 }
 \author{
 For the original \code{rtdists} package: Underlying C code by Jochen Voss and Andreas Voss. Porting and R wrapping by Matthew Gretton, Andrew Heathcote, Scott Brown, and Henrik Singmann. \code{qdiffusion} by Henrik Singmann. For the \code{dDDMConf} function the C code was extended by Sebastian Hellmann.

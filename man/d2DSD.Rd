@@ -7,13 +7,13 @@
 \alias{r2DSD}
 \title{Pleskac and Busemeyer's 2DSD Model for Decision Confidence}
 \usage{
-d2DSD(rt, response = "upper", th1, th2, tau = 1, a, v, t0 = 0, z = 0.5,
-  d = 0, sz = 0, sv = 0, st0 = 0, omega = 0, s = 1,
+d2DSD(rt, response = "upper", th1, th2, a, v, t0 = 0, z = 0.5, d = 0,
+  sz = 0, sv = 0, st0 = 0, tau = 1, lambda = 0, s = 1,
   simult_conf = FALSE, precision = 1e-05, z_absolute = FALSE,
   stop_on_error = TRUE, stop_on_zero = FALSE)
 
 r2DSD(n, a, v, t0 = 0, z = 0.5, d = 0, sz = 0, sv = 0, st0 = 0,
-  tau = 1, omega = 0, s = 1, delta = 0.01, maxrt = 15,
+  tau = 1, lambda = 0, s = 1, delta = 0.01, maxrt = 15,
   simult_conf = FALSE, z_absolute = FALSE, stop_on_error = TRUE)
 }
 \arguments{
@@ -33,10 +33,6 @@ confidence judgment (i.e. at time \code{rt}+\code{tau}). Only values with
 \code{th2}>=\code{th1} are accepted.}
 
 \item{th2}{(see \code{th1})}
-
-\item{tau}{post-decisional accumulation time. The length of the time period after the
-decision was made until the confidence judgment is made. Range: \code{tau}>0.
-Default: \code{tau}=1.}
 
 \item{a}{threshold separation. Amount of information that is considered for a decision.
 Large values indicate a conservative decisional style. Typical range: 0.5 < \code{a} < 2}
@@ -78,7 +74,11 @@ distribution with mean \code{t0 + st0/2} describing the distribution of actual
 Reduces skew of predicted RT distributions. Values different from 0 can slow computation
 considerably. Typical range: 0 < \code{st0} < 0.2. Default is 0.}
 
-\item{omega}{power for judgment time in the division of the confidence measure
+\item{tau}{post-decisional accumulation time. The length of the time period after the
+decision was made until the confidence judgment is made. Range: \code{tau}>0.
+Default: \code{tau}=1.}
+
+\item{lambda}{power for judgment time in the division of the confidence measure
 by the judgment time (Default: 0, i.e. no division which is the version of
 2DSD proposed by Pleskac and Busemeyer)}
 
@@ -139,7 +139,7 @@ of non-decisional components), \code{sz} (inter-trial-variability of relative
 starting point), \code{s} (diffusion constant).
 }
 \details{
-For confidence: \code{tau} (post-decisional accumulation time), \code{omega}
+For confidence: \code{tau} (post-decisional accumulation time), \code{lambda}
 the exponent of judgment time for the division by judgment time in the confidence measure,
 \code{th1} and \code{th2} (lower and upper thresholds for confidence interval).
 
@@ -205,7 +205,7 @@ d2DSD(dfu, th1=-Inf, th2=Inf, a=2*s, v=.5*s, s=2)[1:5]
 if (requireNamespace("ggplot2", quietly = TRUE)) {
   require(ggplot2)
   ggplot(dfu, aes(x=rt, y=conf))+
-    stat_density_2d(aes(fill = ..density..), geom = "raster", contour = FALSE) +
+    stat_density_2d(aes(fill = after_stat(density)), geom = "raster", contour = FALSE) +
     facet_wrap(~response)
 }
 boxplot(conf~response, data=dfu)
