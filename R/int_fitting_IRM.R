@@ -27,11 +27,11 @@ fittingIRM <- function(df, nConds, nRatings, fixed, sym_thetas, time_scaled,
 
     }
     if (length(fixed_ws)==0) { ## If no weight is supplied, two have to be fit
-      wx <- c(0.025, 0.45, 0.95)
+      wx <- c(0.025, 0.3, 0.8)
       ## To keep the optimization box-constraint, we fit the second parameter
       ## as proportion of the rest of 1 after considering wx, i.e.
       ## wrt(true weight) = (1-wx)*wrt(fitted parameter)
-      wrt <- c(0.05, 0.5, 1)
+      wrt <- c(0.05, 0.5, 0.9)
       fitted_weights <- c("wx","wrt")
     }
   }
@@ -41,25 +41,25 @@ fittingIRM <- function(df, nConds, nRatings, fixed, sym_thetas, time_scaled,
   if (is.null(init_grid)) {
     #if (mint0 < 0.2) {mint0 <- 0.2}
       if (time_scaled) {
-        init_grid <- expand.grid(vmin = seq(0.01, 0.2, length.out = 2), ### vmin = drift rate in first condition \in (0,\infty)]
-                                 vmax = seq(1, 3.8, length.out = 5),     ### vmax = mean drift rate in last condition \in (\vmin,\infty)]
-                                 a = seq(0.5,1.4, length.out = 3),           ### sz = range of possible start points (unif ditr.; in units of a-z) \in [0,1]
-                                 b = seq(0.5,1.4, length.out = 3),           ### sz = range of possible start points (unif ditr.; in units of a-z) \in [0,1]
-                                 theta0 = c(0.1, 1, 5, 10, 20),              ### theta0 = lowest threshold for confidence rating (in difference from threshold / a)
-                                 thetamax = c(1, 3, 4,10, 15,30),              ### thetamax = highest threshold for confidence rating (in distance from threshold / a)
+        init_grid <- expand.grid(vmin = c(0.01, 0.1,0.8),         ### vmin = drift rate in first condition \in (0,\infty)]
+                                 vmax = c(1, 2, 3.8, 5),          ### vmax = mean drift rate in last condition \in (\vmin,\infty)]
+                                 a = c(0.5, 1.2, 2.8),
+                                 b = c(0.5, 1.2, 2.8),
+                                 theta0 = c(0.3,1.2, 1.7, 2.5),  ### theta0 = lowest threshold for confidence rating (in difference from threshold / a)
+                                 thetamax = c(1, 3, 3, 4),       ### thetamax = highest threshold for confidence rating (in distance from threshold / a)
                                  t0 = seq(max(mint0-0.2, 0), max(mint0-0.1, 0)), ### t0 = minimal non-decision time
-                                 st0 = seq(0.07, 0.5, length.out=3),    ### st0 = range of (uniform dist) non-decision time
+                                 st0 = seq(0.07, 1, length.out=3),    ### st0 = range of (uniform dist) non-decision time
                                  wx = wx,      ### coeff for BoE in conf= wx *(b-xj) + (wrt* 1//sqrt(t)) + (wint* (b-xj)/sqrt(t))
                                  wrt = wrt)      ### coeff for time in conf= wx *(b-xj) + (wrt* 1//sqrt(t)) + (wint* (b-xj)/sqrt(t))
       } else {
-        init_grid <- expand.grid(vmin = seq(0.01, 0.2, length.out = 2), ### vmin = drift rate in first condition \in (0,\infty)]
-                                 vmax = seq(1, 3.8, length.out = 5),     ### vmax = mean drift rate in last condition \in (\vmin,\infty)]
-                                 a = seq(0.5, 1.4, length.out = 3),           ### sz = range of possible start points (unif ditr.; in units of a-z) \in [0,1]
-                                 b = seq(0.5, 1.4, length.out = 3),           ### sz = range of possible start points (unif ditr.; in units of a-z) \in [0,1]
-                                 theta0 = seq(0.1, 0.8,length.out = 3),    ### theta0 = lowest threshold for confidence rating (in difference from threshold / a)
-                                 thetamax = seq(0.7, 1.1 ,length.out = 3),### thetamax = highest threshold for confidence rating (in distance from threshold / a)
+        init_grid <- expand.grid(vmin = c(0.01, 0.1,0.8),         ### vmin = drift rate in first condition \in (0,\infty)]
+                                 vmax = c(1, 2, 3.8, 5),          ### vmax = mean drift rate in last condition \in (\vmin,\infty)]
+                                 a = c(0.5, 1.2, 2.8),
+                                 b = c(0.5, 1.2, 2.8),
+                                 theta0 = c(0.3,1.2, 1.7, 2.5),  ### theta0 = lowest threshold for confidence rating (in difference from threshold / a)
+                                 thetamax = c(1, 3, 3, 4),       ### thetamax = highest threshold for confidence rating (in distance from threshold / a)
                                  t0 = seq(max(mint0-0.2, 0), max(mint0-0.1, 0)), ### t0 = minimal non-decision time
-                                 st0 = seq(0.07, 0.5, length.out=3))    ### st0 = range of (uniform dist) non-decision time
+                                 st0 = seq(0.07, 1, length.out=3))    ### st0 = range of (uniform dist) non-decision time
       }
     }
   init_grid <- init_grid[init_grid$theta0 < init_grid$thetamax,]
@@ -237,6 +237,7 @@ fittingIRM <- function(df, nConds, nRatings, fixed, sym_thetas, time_scaled,
       start <- c(t(inits[i,]))
       names(start) <- names(inits)
       for (l in 1:opts$nRestarts){
+        start <- pmax(pmin(start, upper_optbound-1e-6), lower_optbound+1e-6)
         if (optim_method == "Nelder-Mead") {
           try(m <- optim(par = start,
                          fn = neglikelihood_IRM_free,
@@ -246,6 +247,7 @@ fittingIRM <- function(df, nConds, nRatings, fixed, sym_thetas, time_scaled,
                          method="Nelder-Mead",
                          control = list(maxit = opts$maxit, reltol = opts$reltol)))
         } else if (optim_method =="bobyqa") {
+          start <- pmax(pmin(start, upper_optbound-1e-6), lower_optbound+1e-6)
           try(m <- bobyqa(par = start,
                           fn = neglikelihood_IRM_bounded,
                           lower = lower_optbound, upper = upper_optbound,
@@ -262,6 +264,7 @@ fittingIRM <- function(df, nConds, nRatings, fixed, sym_thetas, time_scaled,
             m$value <- m$fval
           }
         } else if (optim_method=="L-BFGS-B") {  ### ToDo: use dfoptim or pracma::grad as gradient!
+          start <- pmax(pmin(start, upper_optbound-1e-6), lower_optbound+1e-6)
           try(m <- optim(par = start,
                          fn = neglikelihood_IRM_bounded,
                          lower = lower_optbound, upper = upper_optbound,
@@ -293,6 +296,7 @@ fittingIRM <- function(df, nConds, nRatings, fixed, sym_thetas, time_scaled,
               save(logL, inits,  df,fit, attempt,file=filename)
             }
             start <- fit$par
+            names(start) <- names(inits)
           } else if (m$value < fit$value) {
             fit <- m
             if (logging==TRUE) {
@@ -301,6 +305,7 @@ fittingIRM <- function(df, nConds, nRatings, fixed, sym_thetas, time_scaled,
               save(logL, inits,  df,fit, attempt,file=filename)
             }
             start <- fit$par
+            names(start) <- names(inits)
           } # end of if better value
         }   # end of if we got a optim-result at all
       }     # end of for restarts
@@ -314,6 +319,7 @@ fittingIRM <- function(df, nConds, nRatings, fixed, sym_thetas, time_scaled,
       start <- c(t(start))
       names(start) <- parnames
       for (l in 1:opts$nRestarts){
+        start <- pmax(pmin(start, upper_optbound-1e-6), lower_optbound+1e-6)
         if (optim_method == "Nelder-Mead") {
           try(m <- optim(par = start,
                          fn = neglikelihood_IRM_free,
@@ -323,6 +329,7 @@ fittingIRM <- function(df, nConds, nRatings, fixed, sym_thetas, time_scaled,
                          method="Nelder-Mead",
                          control = list(maxit = opts$maxit, reltol = opts$reltol)))
         } else if (optim_method =="bobyqa") {
+          start <- pmax(pmin(start, upper_optbound-1e-6), lower_optbound+1e-6)
           try(m <- bobyqa(par = start,
                           fn = neglikelihood_IRM_bounded,
                           lower = lower_optbound, upper = upper_optbound,
@@ -340,6 +347,7 @@ fittingIRM <- function(df, nConds, nRatings, fixed, sym_thetas, time_scaled,
             m$value <- m$fval
           }
         } else if (optim_method=="L-BFGS-B") {  ### ToDo: use dfoptim or pracma::grad as gradient!
+          start <- pmax(pmin(start, upper_optbound-1e-6), lower_optbound+1e-6)
           try(m <- optim(par = start,
                          fn = neglikelihood_IRM_bounded,
                          lower = lower_optbound, upper = upper_optbound,
@@ -359,9 +367,11 @@ fittingIRM <- function(df, nConds, nRatings, fixed, sym_thetas, time_scaled,
             fit <- m
             noFitYet <- FALSE
             start <- fit$par
+            names(start) <- parnames
           } else if (m$value < fit$value) {
             fit <- m
             start <- fit$par
+            names(start) <- parnames
           }
         }
       }

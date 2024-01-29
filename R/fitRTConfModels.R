@@ -17,7 +17,7 @@
 #'   * \code{stimulus} (encoding the stimulus category in a binary choice task),
 #'   * \code{response} (encoding the decision response),
 #'   * \code{correct} (encoding whether the decision was correct; values in 0, 1)
-#'   * \code{sbj} (giving the subject ID; the models given in the second argument are fitted for each
+#' * \code{sbj} (giving the subject ID; the models given in the second argument are fitted for each
 #'   subject individually. (Furthermore, if `logging = TRUE`, the ID is used in files
 #'   saved with interim results and logging messages.))
 #' @param models character vector with following possible elements "dynWEV", "2DSD", "IRM", "PCRM", "IRMt", and "PCRMt"  for the models to be fit.
@@ -99,13 +99,12 @@
 #'
 #' @references  Hellmann, S., Zehetleitner, M., & Rausch, M. (2023). Simultaneous modeling of choice, confidence and response time in visual perception. \emph{Psychological Review} 2023 Mar 13. doi: 10.1037/rev0000411. Epub ahead of print. PMID: 36913292.
 #'
-#' @author Sebastian Hellmann.
+#' @author Sebastian Hellmann, \email{sebastian.hellmann@@ku.de}
 #'
 #' @name fitRTConfModels
 #' @importFrom dplyr rename
 #' @import parallel
 # @importFrom pracma integral
-#' @aliases fitConfModels
 #'
 #' @examples
 #' # 1. Generate data from two artificial participants
@@ -152,12 +151,16 @@
 
 #' @rdname fitRTConfModels
 #' @export
-fitRTConfModels <- function(data, models = c("dynWEV", "2DSD"),
+fitRTConfModels <- function(data, models = c("dynaViTE", "2DSD", "PCRMt"),
                       nRatings = NULL, fixed = list(sym_thetas = FALSE), restr_tau=Inf,
                       grid_search=TRUE,
                       opts=list(), optim_method = "bobyqa", logging=FALSE, precision=1e-5,
                       parallel = TRUE, n.cores=NULL, ...){ #  ?ToDO: vary_sv=FALSE, RRT=NULL, vary_tau=FALSE
-  if (any(!grepl("dynaViTE|IRM|PCRM|IRMt|PCRMt|dynWEV|2DSD|DDMConf", models))) stop("all models must contain 'dynWEV', '2DSD', 'DDMConf', 'IRM', or 'PCRM'")
+  if (any(!grepl("dynaViTE|IRM|PCRM|IRMt|PCRMt|dynWEV|2DSD|DDMConf", models))) {
+    stop("all models must be one of:
+    'dynaViTE', 'dynWEV', '2DSDT', '2DSD',
+    'DDMConf', 'IRM', 'IRMt', 'PCRM', or 'PCRMt'")
+  }
 
   ### Maybe later: use ...-argument für renaming data-columns and to pass other arguments
   # colrenames <- c(...)

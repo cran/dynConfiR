@@ -2,13 +2,13 @@
 % Please edit documentation in R/fitRTConfModels.R
 \name{fitRTConfModels}
 \alias{fitRTConfModels}
-\alias{fitConfModels}
 \title{Function for fitting several sequential sampling confidence models in parallel}
 \usage{
-fitRTConfModels(data, models = c("dynWEV", "2DSD"), nRatings = NULL,
-  fixed = list(sym_thetas = FALSE), restr_tau = Inf, grid_search = TRUE,
-  opts = list(), optim_method = "bobyqa", logging = FALSE,
-  precision = 1e-05, parallel = TRUE, n.cores = NULL, ...)
+fitRTConfModels(data, models = c("dynaViTE", "2DSD", "PCRMt"),
+  nRatings = NULL, fixed = list(sym_thetas = FALSE), restr_tau = Inf,
+  grid_search = TRUE, opts = list(), optim_method = "bobyqa",
+  logging = FALSE, precision = 1e-05, parallel = TRUE, n.cores = NULL,
+  ...)
 }
 \arguments{
 \item{data}{a \code{data.frame} where each row is one trial, containing following
@@ -23,10 +23,10 @@ the form \code{condition="contrast"}):
 \item \code{stimulus} (encoding the stimulus category in a binary choice task),
 \item \code{response} (encoding the decision response),
 \item \code{correct} (encoding whether the decision was correct; values in 0, 1)
+}
 \item \code{sbj} (giving the subject ID; the models given in the second argument are fitted for each
 subject individually. (Furthermore, if \code{logging = TRUE}, the ID is used in files
 saved with interim results and logging messages.))
-}
 }}
 
 \item{models}{character vector with following possible elements "dynWEV", "2DSD", "IRM", "PCRM", "IRMt", and "PCRMt"  for the models to be fit.}
@@ -173,5 +173,5 @@ head(data)
 Hellmann, S., Zehetleitner, M., & Rausch, M. (2023). Simultaneous modeling of choice, confidence and response time in visual perception. \emph{Psychological Review} 2023 Mar 13. doi: 10.1037/rev0000411. Epub ahead of print. PMID: 36913292.
 }
 \author{
-Sebastian Hellmann.
+Sebastian Hellmann, \email{sebastian.hellmann@ku.de}
 }
