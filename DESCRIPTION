@@ -1,14 +1,14 @@
 Type: Package
 Package: dynConfiR
 Title: Dynamic Models for Confidence and Response Time Distributions
-Version: 0.0.4
+Version: 1.0.0
 Authors@R: c(
-    person("Sebastian", "Hellmann", , "sebastian.hellmann@ku.de", role = c("aut", "cre"),
+    person("Sebastian", "Hellmann", , "sebastian.hellmann@tum.de", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-3621-6343")),
     person("Manuel", "Rausch", , "manuel.rausch@ku.de", role = c("aut", "fnd"),
            comment = c(ORCID = "0000-0002-5805-5544"))
   )
-Maintainer: Sebastian Hellmann <sebastian.hellmann@ku.de>
+Maintainer: Sebastian Hellmann <sebastian.hellmann@tum.de>
 Description: Provides density functions for the joint distribution of
     choice, response time and confidence for discrete confidence judgments
     as well as functions for parameter fitting, prediction and simulation
@@ -21,7 +21,7 @@ Description: Provides density functions for the joint distribution of
 License: GPL (>= 3)
 URL: https://github.com/SeHellmann/dynConfiR,
         https://sehellmann.github.io/dynConfiR/
-BugReports: https://github.com/SeHellmann/dynConfiR
+BugReports: https://github.com/SeHellmann/dynConfiR/issues
 Depends: R (>= 4.0)
 Imports: dplyr, magrittr, minqa, parallel, progress, Rcpp, rlang, stats
 Suggests: covr, ggplot2, Hmisc, knitr, logger, rmarkdown, testthat (>=
@@ -29,12 +29,14 @@ Suggests: covr, ggplot2, Hmisc, knitr, logger, rmarkdown, testthat (>=
 LinkingTo: Rcpp
 VignetteBuilder: knitr
 Config/testthat/edition: 3
-Date/Publication: 2024-01-29 18:10:02 UTC
 Encoding: UTF-8
 LazyData: true
 NeedsCompilation: yes
-Packaged: 2024-01-29 17:50:05 UTC; PPA859
 Repository: CRAN
-RoxygenNote: 7.2.3
-Author: Sebastian Hellmann [aut, cre] (<https://orcid.org/0000-0002-3621-6343>),
-  Manuel Rausch [aut, fnd] (<https://orcid.org/0000-0002-5805-5544>)
+RoxygenNote: 7.3.1
+Packaged: 2025-05-08 16:29:33 UTC; go73jec
+Author: Sebastian Hellmann [aut, cre] (ORCID:
+    <https://orcid.org/0000-0002-3621-6343>),
+  Manuel Rausch [aut, fnd] (ORCID:
+    <https://orcid.org/0000-0002-5805-5544>)
+Date/Publication: 2025-05-08 17:00:02 UTC

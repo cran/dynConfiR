@@ -87,22 +87,24 @@ NumericVector density_PCRM (NumericVector rts, NumericVector params, int win=1, 
     if (st0==0) {
 
         for (int i = 0; i < length; i++) {
-            if (rts[i] < 0 ) {
+            if (rts[i] <= 0 ) {
                 out[i] = 0;
             } else {
                 out[i] = fac *  densPCRM (rts[i], th2,  th1, muw,  mul, wx, wrt, wint,
                                    C, expC,  Xis);
+              if (i % 200 ==0 ) Rcpp::checkUserInterrupt();
             }
         }
     } else {
         for (int i = 0; i < length; i++) {
-            if (rts[i] < 0 ) {
+            if (rts[i] <= 0 ) {
                 out[i] = 0;
             } else {
                 out[i] = fac / st0 *
                     integrate_densPCRM_over_t(rts[i]-st0, rts[i], dt,
                                               th2,  th1, muw,  mul, wx, wrt, wint,
                                               C, expC, Xis);
+              if (i % 200 ==0 ) Rcpp::checkUserInterrupt();
             }
         }
     }

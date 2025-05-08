@@ -82,22 +82,24 @@ NumericVector density_IRM (NumericVector rts, NumericVector params, int win=1, d
         double fac = - inv_sqrt_2pi*a/2;
         if (st0==0) {
             for (int i = 0; i < length; i++) {
-                if (rts[i] < 0 ) {
+                if (rts[i] <= 0 ) {
                     out[i] = 0;
                 } else {
                     out[i] = fac * densIRM_equalbounds( rts[i],  th2,  th1, muw,  mul,  a,  b,
                                                         wx, wrt, wint);
+                  if (i % 200 ==0 ) Rcpp::checkUserInterrupt();
                 }
             }
         } else {
             for (int i = 0; i < length; i++) {
-                if (rts[i] < 0 ) {
+                if (rts[i] <= 0 ) {
                     out[i] = 0;
                 } else {
                     out[i] = fac / st0 *
                         integrate_densIRM_equalbounds_over_t(rts[i]-st0, rts[i], dt,
                                                          th2,  th1, muw,  mul,  a,  b,
                                                          wx, wrt, wint);
+                  if (i % 200 ==0 ) Rcpp::checkUserInterrupt();
                 }
             }
         }
@@ -116,22 +118,24 @@ NumericVector density_IRM (NumericVector rts, NumericVector params, int win=1, d
         Xis.attr("dim") = Dimension(4,2);
         if (st0==0) {
             for (int i = 0; i < length; i++) {
-                if (rts[i] < 0 ) {
+                if (rts[i] <= 0 ) {
                     out[i] = 0;
                 } else {
                     out[i] = fac *  densIRM_differbounds (rts[i], th2,  th1, muw,  mul, wx, wrt, wint,
                                        C, expC,  Xis);
+                  if (i % 200 ==0 ) Rcpp::checkUserInterrupt();
                 }
             }
         } else {
             for (int i = 0; i < length; i++) {
-                if (rts[i] < 0 ) {
+                if (rts[i] <= 0 ) {
                     out[i] = 0;
                 } else {
                     out[i] = fac / st0 *
                     integrate_densIRM_differbounds_over_t(rts[i]-st0, rts[i], dt,
                                                          th2,  th1, muw,  mul, wx, wrt, wint,
                                                          C, expC, Xis);
+                  if (i % 200 ==0 ) Rcpp::checkUserInterrupt();
                 }
             }
         }

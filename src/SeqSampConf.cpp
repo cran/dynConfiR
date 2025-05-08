@@ -44,12 +44,19 @@ NumericVector d_2DSD (NumericVector rts, NumericVector params, double precision=
 
     // Add tuning values for numerical integrations at the end of parameters
     // ToDo: Optimize and check precision values
-    params.push_back(0.0089045 * exp(-1.037580*precision)); // TUNE_INT_T0
-    params.push_back(0.0508061 * exp(-1.022373*precision)); // TUNE_INT_Z
-    //     These have been added to optimise code paths by treating very small variances as 0
-    //     e.g. with precision = 3, sv or sz values < 10^-5 are considered 0
-    params.push_back(pow (10, -(precision+2.0))); // TUNE_SZ_EPSILON
-    params.push_back(pow (10, -(precision+2.0))); // TUNE_ST0_EPSILON
+    if (precision >= 1) {
+      params.push_back(0.0089045 * exp(-1.037580*(precision-3.5))); // TUNE_INT_T0
+      params.push_back(0.0508061 * exp(-1.022373*(precision-3.5))); // TUNE_INT_Z
+      //     These have been added to optimise code paths by treating very small variances as 0
+      //     e.g. with precision = 3, sv or sz values < 10^-5 are considered 0
+      params.push_back(pow (10, -(precision+2.0))); // TUNE_SZ_EPSILON
+      params.push_back(pow (10, -(precision+2.0))); // TUNE_ST0_EPSILON
+    } else {
+      params.push_back(precision); // TUNE_INT_T0
+      params.push_back(precision); // TUNE_INT_Z
+      params.push_back(0); // TUNE_SZ_EPSILON
+      params.push_back(0); // TUNE_ST0_EPSILON
+    }
 
     out = density_2DSD (rts, params, boundary-1, stop_on_zero);
 
@@ -75,23 +82,28 @@ NumericVector d_WEVmu (NumericVector rts, NumericVector params, double precision
       else { return out; }
     }
 
-    // Add tuning values for numerical integrations at the end of parameters
-    // ToDo: Optimize and check precision values
-    params.push_back(0.0089045 * exp(-1.037580*precision)); // TUNE_INT_T0
-    params.push_back(0.0508061 * exp(-1.022373*precision)); // TUNE_INT_Z
-    //     These have been added to optimise code paths by treating very small variances as 0
-    //     e.g. with precision = 3, sv or sz values < 10^-5 are considered 0
-    params.push_back(pow (10, -(precision+2.0))); // TUNE_SZ_EPSILON
-    params.push_back(pow (10, -(precision+2.0))); // TUNE_ST0_EPSILON
+    if (precision >= 1) {
+      params.push_back(0.0089045 * exp(-1.037580*(precision-3.5))); // TUNE_INT_T0
+      params.push_back(0.0508061 * exp(-1.022373*(precision-3.5))); // TUNE_INT_Z
+      //     These have been added to optimise code paths by treating very small variances as 0
+      //     e.g. with precision = 3, sv or sz values < 10^-5 are considered 0
+      params.push_back(pow (10, -(precision+2.0))); // TUNE_SZ_EPSILON
+      params.push_back(pow (10, -(precision+2.0))); // TUNE_ST0_EPSILON
+    } else {
+      params.push_back(precision); // TUNE_INT_T0
+      params.push_back(precision); // TUNE_INT_Z
+      params.push_back(0); // TUNE_SZ_EPSILON
+      params.push_back(0); // TUNE_ST0_EPSILON
+    }
 
     out = density_WEVmu (rts, params, boundary-1, stop_on_zero);
 
     return out;
 }
 
-// R-callable PDF for DDMConf - pass boundary to retrieve (1 = lower, 2 = upper)
+// R-callable PDF for DDConf - pass boundary to retrieve (1 = lower, 2 = upper)
 // [[Rcpp::export]]
-NumericVector d_DDMConf (NumericVector rts, NumericVector params, double precision=1e-5, int boundary=2,
+NumericVector d_DDConf (NumericVector rts, NumericVector params, double precision=6, int boundary=2,
                          bool stop_on_error=true, bool stop_on_zero=false,
                          double st0precision=0.01)
 {
@@ -118,7 +130,7 @@ NumericVector d_DDMConf (NumericVector rts, NumericVector params, double precisi
   params.push_back(pow (10, -(precision+2.0))); // TUNE_SZ_EPSILON
   params.push_back(pow (10, -(precision+2.0))); // TUNE_ST0_EPSILON
 
-  out = density_DDMConf (rts, params, boundary-1, stop_on_zero, st0precision);
+  out = density_DDConf (rts, params, boundary-1, stop_on_zero, st0precision);
 
   return out;
 }
@@ -149,6 +161,22 @@ NumericVector d_IRM2 (NumericVector rts, NumericVector params, int win=1,  doubl
   NumericVector out(length, 0.0);  // Should default to 0s when creating NumericVector, but just in case..
 
   out = density_IRM2 (rts, params, win, step_width);
+
+  return out;
+}
+
+
+// [[Rcpp::export]]
+NumericVector d_IRM3 (NumericVector rts, NumericVector params, int win=1,  double step_width = 0.0001)
+{
+  int length = rts.length();
+
+  if (params.length()!= 14) {Rcpp::stop ("Wrong number of parameters given. (Must be 14)\n"); }
+  if ((win < 1) || (win > 2)) { Rcpp::stop ("Boundary must be either 2 (upper) or 1 (lower)\n"); }
+
+  NumericVector out(length, 0.0);  // Should default to 0s when creating NumericVector, but just in case..
+
+  out = density_IRM3 (rts, params, win, step_width);
 
   return out;
 }
@@ -211,6 +239,7 @@ NumericVector dd_IRM (NumericVector rts, NumericVector xj, NumericVector params,
                 exp(-(muw*t+a)*(muw*t+a)/sig2t) *
                 (exp(-(xj[i]-(mul*t+a))*(xj[i]-(mul*t+a))/sig2t) -
                 exp(-(2*b*mul)/(sigma*sigma))*exp(-(xj[i]-(mul*t-a))*(xj[i]-(mul*t-a))/sig2t));
+            if (i % 200 ==0 ) Rcpp::checkUserInterrupt();
         }
     } else {
         if (method==1) {
@@ -241,6 +270,7 @@ NumericVector dd_IRM (NumericVector rts, NumericVector xj, NumericVector params,
                         exp(expC[j] - (x1tilde)*(x1tilde)/(sig2t) - (x2tilde)*(x2tilde)/(sig2t));
                 }
                 out[i] = temp*fac/(t*t);
+                if (i % 200 ==0 ) Rcpp::checkUserInterrupt();
             }
         } else if (method == 2){
             muw = params[0];
@@ -276,6 +306,7 @@ NumericVector dd_IRM (NumericVector rts, NumericVector xj, NumericVector params,
                     temp = temp + temp1;
                 }
                 out[i] = temp*fact*fac;
+                if (i % 200 ==0 ) Rcpp::checkUserInterrupt();
             }
         }
     }
@@ -344,6 +375,7 @@ NumericVector dd_PCRM (NumericVector rts, NumericVector xj, NumericVector params
                 exp(expC[j] - (x1tilde)*(x1tilde)/(sig2t) - (x2tilde+0.5*x1tilde)*(x2tilde+0.5*x1tilde)/(0.75*sig2t));
         }
         out[i] = temp*fac/(t*t);
+        if (i % 200 ==0 ) Rcpp::checkUserInterrupt();
     }
 
     return out;
@@ -637,7 +669,7 @@ NumericVector r_LCA (int n, NumericVector params, double delta=0.01, double maxT
 
 
 // [[Rcpp::export]]
-NumericVector r_DDMConf (int n, NumericVector params, double delta=0.01, double maxT=9, bool stop_on_error=true)
+NumericVector r_DDConf (int n, NumericVector params, double delta=0.01, double maxT=9, bool stop_on_error=true)
 {
   double a   = params[0];
   double v   = params[1];

@@ -82,7 +82,7 @@ public:
 
 
         //Rcpp::Rcout << "note: length of params vector " << params.size() << std::endl;
-        if (params.size()<= 10) // DDMConf model
+        if (params.size()<= 10) // DDConf model
         {
           tau = 1;
           th1 = params[PARAM_th1-1];
@@ -104,7 +104,7 @@ public:
           svis = 1;
         }
 
-        if (params.size() > 12)    // This switches between parameters for dWEV model or simpler 2DSD model
+        if (params.size() > 12)    // This switches between parameters for ddynaViTE model or simpler 2DSD model
         {
 
           w   = params[PARAM_w];

@@ -3,7 +3,7 @@
 #' Computes the Log-likelihood for given data and parameters in the
 #' dynWEV model (Hellmann et al., 2023) and the 2DSD model
 #' (Pleskac & Busemeyer, 2010). It is a wrapped version of the
-#' respective densities \code{\link{dWEV}} and \code{\link{d2DSD}},
+#' respective densities \code{\link{ddynaViTE}} and \code{\link{d2DSD}},
 #' where one can find more information about the parameters
 #' (\code{z} is always given relatively, in the likelihood).
 #' The function is mainly used in \code{\link{fitRTConf}} but
@@ -84,11 +84,10 @@
 #' stimulus <- sample(c(-1, 1), 200, replace=TRUE)
 #' discriminability <- sample(c(1, 2), 200, replace=TRUE)
 #' # generate data for participant 1
-#' data <- rWEV(200, a=2,v=stimulus*discriminability*0.5,
+#' data <- rdynaViTE(200, a=2,v=stimulus*discriminability*0.5,
 #'              t0=0.2,z=0.5, sz=0.1,sv=0.1, st0=0,  tau=4, s=1, w=0.3)
 #' # discretize confidence ratings (only 2 steps: unsure vs. sure)
 #' data$rating <- as.numeric(cut(data$conf, breaks = c(-Inf, 1, Inf), include.lowest = TRUE))
-#' data$participant = 1
 #' data$stimulus <- stimulus
 #' data$discriminability <- discriminability
 #' data <- data[data$response!=0, ] # drop not finished decision processes
@@ -117,13 +116,16 @@
 
 #' @rdname LogLikWEV
 #' @export
-LogLikWEV <- function(data, paramDf, model="dynaViTE", simult_conf = FALSE, precision=1e-5, stop_on_error = TRUE, data_names = list(), ...) {
+LogLikWEV <- function(data, paramDf, model="dynaViTE", simult_conf = FALSE,
+                      precision=6, stop_on_error = TRUE, data_names = list(), ...) {
   #### Check data formatting ####
-  data <- rename(data, ...)
+  tryCatch(data <- rename(data, ...),
+           error = function(e) stop(paste0("Error renaming data columns. Probably a column name does not exist, or we tried to overwrite an already existing column.\nCheck whether an argument was misspelled and data name pairs are given in the form expected_name = true_name.\nUsed input for renaming columns:\n", paste(names(list(...)), list(...), sep="=", collapse = ", "))))
   if ((model %in% c("dynWEV", "2DSD")) && !("lambda" %in% names(paramDf))) paramDf$lambda <- 0
   if (model=="dynWEV") model <- "dynaViTE"
   if (model=="2DSDT") model <- "2DSD"
   if (!("lambda" %in% names(paramDf))) paramDf$lambda <- 0
+
 
 
   #### Get information from paramDf ####
@@ -134,7 +136,6 @@ LogLikWEV <- function(data, paramDf, model="dynaViTE", simult_conf = FALSE, prec
   } else {
     nRatings <- length(grep(pattern = "^thetaUpper[0-9]", names(paramDf)))+1
   }
-
   if (nConds > 0 ) {
     V <- c(t(paramDf[,paste("v",1:(nConds), sep = "")]))
   } else {
@@ -165,13 +166,6 @@ LogLikWEV <- function(data, paramDf, model="dynaViTE", simult_conf = FALSE, prec
     thetas_upper <- c(-1e+32, t(paramDf[,paste("thetaUpper",1:(nRatings-1), sep = "")]), 1e+32)
     thetas_lower <- c(-1e+32, t(paramDf[,paste("thetaLower",1:(nRatings-1), sep="")]), 1e+32)
   }
-  # if (model=="2DSD") {    # For 2DSD the parametrisation for lower thetas is different (different confidence scale)
-  #   thetas_lower <- c(-1e+32, rev(thetas_lower[2:(nRatings)]), 1e+32)
-  #   if (symmetric_confidence_thresholds) {
-  #     thetas_lower <- paramDf$a- rev(thetas_upper)
-  #   }
-  # }
-
   #### Check for column names given ####
   names_missing <- !(c("condition","response","stimulus","rating", "rt", "sbj", "correct") %in% names(data_names))
   data_names <- c(data_names,
@@ -199,7 +193,7 @@ LogLikWEV <- function(data, paramDf, model="dynaViTE", simult_conf = FALSE, prec
 
 
   probs <- with(data, switch(which(model== c("dynaViTE", "2DSD")),
-                             dWEV(rt, vth1,vth2,
+                             ddynaViTE(rt, vth1,vth2,
                                         response=response,
                                         tau=paramDf$tau, a=paramDf$a,
                                         v = M_drift,

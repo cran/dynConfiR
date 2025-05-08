@@ -1,11 +1,11 @@
 #' Function for fitting sequential sampling confidence models
 #'
 #' Fits the parameters of different models of response time and confidence, including
-#' the 2DSD model (Pleskac & Busemeyer, 2010), dynWEV, DDMConf, and various
+#' the 2DSD model (Pleskac & Busemeyer, 2010), dynWEV, DDConf, and various
 #' flavors of race models (Hellmann et al., 2023). Which model to fit is
 #' specified by the argument \code{model}.
 #' Only a ML method is implemented.
-#' See \code{\link{dWEV}}, \code{\link{d2DSD}}, and \code{\link{dRM}} for more
+#' See \code{\link{ddynaViTE}}, \code{\link{d2DSD}}, and \code{\link{dRM}} for more
 #' information about the parameters and Details for not-fitted parameters.
 #'
 #' @param data a `data.frame` where each row is one trial, containing following
@@ -22,7 +22,7 @@
 #'                                                       if unique the ID is used in saved files with interim results
 #'                                                       and logging messages;
 #'                                                       if non-unique or missing and `logging =TRUE`, 999 will be used then)
-#' @param model character scalar. One of "dynWEV", "2DSD", "IRM", "PCRM", "IRMt", "PCRMt", or "DDMConf" for the model to be fit.
+#' @param model character scalar. One of "dynWEV", "2DSD", "IRM", "PCRM", "IRMt", "PCRMt", or "DDConf" for the model to be fit.
 #' @param fixed list. List with parameter-value pairs for parameters that should not be fitted. See Details.
 #' @param init_grid data.frame or `NULL`. Grid for the initial parameter search. Each row is one parameter constellation.
 #' See details for more information. If \code{NULL} a default grid will be used.
@@ -55,9 +55,9 @@
 #' (default) the number of available cores -1 is used.
 #' @param restr_tau numerical or `Inf` or `"simult_conf"`. For 2DSD and dynWEV only.
 #' Upper bound for tau. Fits will be in the interval (0,`restr_tau`). If FALSE tau will be unbound.
-#' For `"simult_conf"`, see the documentation of \code{\link{d2DSD}} and \code{\link{dWEV}}
-#' @param precision numerical scalar. For 2DSD and dynWEV only. Precision of calculation.
-#' (in the respective models) for the density functions (see \code{\link{dWEV}} for more information).
+#' For `"simult_conf"`, see the documentation of \code{\link{d2DSD}} and \code{\link{ddynaViTE}}
+#' @param precision numeric. Precision of calculation for the density functions
+#'  (see \code{\link{ddynaViTE}} and \code{\link{dPCRM}} for more information).
 #' @param ... Possibility of giving alternative variable names in data frame
 #' (in the form \code{condition = "SOA"}, or \code{response="pressedKey"}).
 #'
@@ -157,10 +157,10 @@
 #' # We use one of the implemented models, "dynWEV"
 #' # 1. Generate data
 #' # data with positive drift (stimulus = "upper")
-#' data <- rWEV(20, a=2,v=0.5,t0=0.2,z=0.5, sz=0.1,sv=0.1, st0=0,  tau=4, s=1, w=0.3)
+#' data <- rdynaViTE(20, a=2,v=0.5,t0=0.2,z=0.5, sz=0.1,sv=0.1, st0=0,  tau=4, s=1, w=0.3)
 #' data$stimulus <- "upper"
 #' # data with negtive drift (stimulus = "lower") but same intensity
-#' data2 <- rWEV(100, a=2,v=-0.5,t0=0.2,z=0.5,sz=0.1,sv=0.1, st0=0,  tau=4, s=1, w=0.3)
+#' data2 <- rdynaViTE(100, a=2,v=-0.5,t0=0.2,z=0.5,sz=0.1,sv=0.1, st0=0,  tau=4, s=1, w=0.3)
 #' data2$stimulus <- "lower"
 #' data <- rbind(data, data2)
 #' # Transfer response column and add dummy condition column
@@ -189,7 +189,7 @@ fitRTConf <- function(data, model = "dynWEV",
                       fixed = list(sym_thetas = FALSE),
                       init_grid = NULL, grid_search = TRUE,
                       data_names = list(), nRatings = NULL, restr_tau =Inf,
-                      precision=1e-5,logging=FALSE, opts=list(), optim_method = "bobyqa",
+                      precision=3,logging=FALSE, opts=list(), optim_method = "bobyqa",
                       useparallel = FALSE, n.cores=NULL, ...){ #  ?ToDO: vary_sv=FALSE, RRT=NULL, vary_tau=FALSE
   # Check if package 'logger' is installed, if logging is wished
   if (logging && !requireNamespace("logger", quietly = TRUE)) {
@@ -202,12 +202,15 @@ fitRTConf <- function(data, model = "dynWEV",
   #### Check argument types ###
   if (!is.logical(grid_search)) stop(paste("grid_search must be logical, but is ", typeof(grid_search), sep=""))
   if (length(grid_search)!=1) stop(paste("grid_search must be of length 1, it's ", length(grid_search), sep=""))
-
+  if (model =="DDMConf") {
+    warning("DDMConf was renamed DDConf in version 1.0.0! DDConf will be fitted!")
+    model = "DDConf"
+  }
   # colrenames <- c(...)
   # colrenames <- colrenames[colrenames %in% names(data)]
   # data <- rename(data, colrenames)
   tryCatch(data <- rename(data, ...),
-           error = function(e) stop("Error renaming data columns. Probably a column name does not exist.\nCheck whether an argument was misspelled and data name pairs are given in the form expected_name = true_name."))
+           error = function(e) stop(paste0("Error renaming data columns. Probably a column name does not exist, or we tried to overwrite an already existing column.\nCheck whether an argument was misspelled and data name pairs are given in the form expected_name = true_name.\nUsed input for renaming columns:\n", paste(names(list(...)), list(...), sep="=", collapse = ", "))))
 
 
 
@@ -370,6 +373,7 @@ fitRTConf <- function(data, model = "dynWEV",
 
   ### Now, call the specific fitting functions:
   if (grepl("2DSD", model)) {
+    fixed <- fixed[!sapply(fixed, is.character)] # drop possible threshold-restriction meant for race models
     if (model=="2DSD") fixed$lambda <- 0
     res <- fitting2DSD(df, nConds, nRatings, fixed, sym_thetas,
                                           grid_search, init_grid, optim_method, opts,
@@ -379,6 +383,7 @@ fitRTConf <- function(data, model = "dynWEV",
                                           used_cats, actual_nRatings)
   }
   if (grepl("dynWEV|dynaViTE",model)) {
+    fixed <- fixed[!sapply(fixed, is.character)] # drop possible threshold-restriction meant for race models
     if (model=="dynWEV") fixed$lambda <- 0
     res <- fittingdynWEV(df, nConds, nRatings, fixed, sym_thetas,
                                               grid_search, init_grid, optim_method, opts,
@@ -387,27 +392,30 @@ fitRTConf <- function(data, model = "dynWEV",
                                               restr_tau, precision,
                                               used_cats, actual_nRatings)
   }
-  if (grepl("IRM", model)) res <- fittingIRM(df, nConds, nRatings, fixed,
+  if (grepl("IRM", model)) res <- fittingRMs(df, model="IRM", nConds, nRatings, fixed,
                                              sym_thetas, grepl("t", model),
                                         grid_search, init_grid, optim_method, opts,
                                         logging, filename,
                                         useparallel, n.cores,
-                                        used_cats, actual_nRatings)
-  if (grepl("PCRM", model)) res <- fittingPCRM(df, nConds, nRatings, fixed ,
+                                        used_cats, actual_nRatings, precision)
+  if (grepl("PCRM", model)) res <- fittingRMs(df, model="PCRM", nConds, nRatings, fixed ,
                                                sym_thetas, grepl("t", model),
                                           grid_search, init_grid, optim_method, opts,
                                           logging, filename,
                                           useparallel, n.cores,
-                                          used_cats, actual_nRatings)
-  if (model == "DDMConf") res <- fittingDDMConf(df, nConds, nRatings, fixed, sym_thetas,
-                                          grid_search, init_grid, opts,
-                                          logging, filename,
-                                          useparallel, n.cores,
-                                          precision,
                                           used_cats, actual_nRatings, precision)
+  if (model == "DDConf") {
+    fixed <- fixed[!sapply(fixed, is.character)] # drop possible threshold-restriction meant for race models
+    res <- fittingDDConf(df, nConds, nRatings, fixed, sym_thetas,
+                          grid_search, init_grid, opts,
+                          logging, filename,
+                          useparallel, n.cores,
+                          precision,
+                          used_cats, actual_nRatings, precision)
+    }
   if (!exists("res")) stop("Model is unknown.
                            model must contain one of: 'dynaViTE', 'dynWEV',
-                           '2DSD', '2DSDT', 'IRM', 'IMRt', 'PCRM', 'PCRMt', or 'DDMConf'")
+                           '2DSD', '2DSDT', 'IRM', 'IMRt', 'PCRM', 'PCRMt', or 'DDConf'")
 
 
   return(res)

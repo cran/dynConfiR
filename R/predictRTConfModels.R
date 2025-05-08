@@ -5,8 +5,8 @@
 #' there for more information). It calls the respective function for predicting the
 #' response distribution (discrete decision and rating outcomes) and the rt density
 #' (density for decision, rating and response time) for every model and
-#' participant combination in \code{paramDf}.
-#' Also, see \code{\link{dWEV}}, \code{\link{d2DSD}}, and \code{\link{dRM}} for more
+#' participant/subject combination in \code{paramDf}.
+#' Also, see \code{\link{ddynaViTE}}, \code{\link{d2DSD}}, and \code{\link{dRM}} for more
 #' information about the parameters.
 #'
 #' @param paramDf a dataframe with one row per combination of model and
@@ -58,8 +58,8 @@
 #' `response`, `rating`, `correct`, `p`, `info`, `err`. `p` is the predicted probability of a response
 #' and `rating`, given the stimulus category and condition. `info` and `err` refer to the
 #' respective outputs of the integration routine used for the computation.
-#' \code{predictRTModels} returns a `data.frame`/`tibble` with columns: `participant` (or `sbj`,
-#' subject depending on the input), `model`, `condition`, `stimulus`,
+#' \code{predictRTModels} returns a `data.frame`/`tibble` with columns: `participant` (or `sbj`/`subject`
+#' depending on the input), `model`, `condition`, `stimulus`,
 #' `response`, `rating`, `correct`, `rt` and `dens` (and `densscaled`, if `scaled=TRUE`).
 #'
 #'
@@ -145,8 +145,13 @@ predictConfModels <- function(paramDf,
   models <- unique(paramDf$model)
   if (is.null(models)) stop("model column missing in paramDf")
   if (!is.numeric(maxrt)) stop("maxrt must be numeric")
-  if (!all(grepl("dynWEV|2DSD|IRM|PCRM|DDMConf|dynaViTE", models))) {
-    stop("model must contain 'dynaViTE', 'dynWEV', '2DSD', 'DDMConf', 'IRM', 'PCRM', 'IRMt', or 'PCRMt'")
+  if (any(models =="DDMConf")) {
+    warning("DDMConf was renamed DDConf in version 1.0.0! DDConf will be predicted instead!")
+    models[models=="DDMConf"] = "DDConf"
+  }
+
+  if (!all(grepl("dynWEV|2DSD|IRM|PCRM|DDConf|dynaViTE", models))) {
+    stop("model must contain 'dynaViTE', 'dynWEV', '2DSD', 'DDConf', 'IRM', 'PCRM', 'IRMt', or 'PCRMt'")
   }
   sbjcol <- c("subject", "participant", "sbj")[which(c("subject", "participant", "sbj") %in% names(paramDf))]
   if (length(sbjcol)==0) {
@@ -225,8 +230,13 @@ predictRTModels <- function(paramDf,
   if (!is.numeric(maxrt)) stop("maxrt must be numeric")
   models <- unique(paramDf$model)
   if (is.null(models)) stop("model column missing in paramDf")
-  if (!all(grepl("dynWEV|2DSD|IRM|PCRM|DDMConf|dynaViTE", models))) {
-    stop("model must contain 'dynaViTE', 'dynWEV', '2DSD', 'DDMConf', 'IRM', 'PCRM', 'IRMt', or 'PCRMt'")
+  if (any(models =="DDMConf")) {
+    warning("DDMConf was renamed DDConf in version 1.0.0! DDConf will be predicted instead!")
+    models[models=="DDMConf"] = "DDConf"
+  }
+
+  if (!all(grepl("dynWEV|2DSD|IRM|PCRM|DDConf|dynaViTE", models))) {
+    stop("model must contain 'dynaViTE', 'dynWEV', '2DSD', 'DDConf', 'IRM', 'PCRM', 'IRMt', or 'PCRMt'")
   }
   sbjcol <- c("subject", "participant", "sbj")[which(c("subject", "participant", "sbj") %in% names(paramDf))]
   if (length(sbjcol)==0) {

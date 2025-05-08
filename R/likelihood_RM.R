@@ -26,6 +26,7 @@
 #' @param model character scalar. One of "IRM" or "PCRM". ("IRMt" and "PCRMt" will also be accepted. In that case,
 #' time_scaled is set to TRUE.)
 #' @param time_scaled logical. Whether the confidence measure should be scaled by 1/sqrt(rt). Default: TRUE.
+#' @param precision numerical scalar. Precision of calculation for integration over t0.
 #' @param data_names list. Possibility of giving alternative column names for the variables in the data. By default column names are identical to the
 #' ones given in the data argument description.
 #' @param ... Another possibility of giving alternative variable names in data frame (in the form \code{condition = "SOA"}).
@@ -80,7 +81,6 @@
 #'              a=2, b=1.8, t0=0.2, st0=0, wx=0.7, wint=0.3, wrt=0)
 #' # discretize confidence ratings (only 2 steps: unsure vs. sure)
 #' data$rating <- as.numeric(cut(data$conf, breaks = c(0, 3, Inf), include.lowest = TRUE))
-#' data$participant = 1
 #' data$stimulus <- stimulus
 #' data$discriminability <- discriminability
 #' data <- data[data$response!=0, ] # drop not finished decision processes
@@ -105,7 +105,8 @@
 
 #' @rdname LogLikRM
 #' @export
-LogLikRM <- function(data, paramDf, model="IRM", time_scaled =FALSE, data_names = list(), ...) {
+LogLikRM <- function(data, paramDf, model="IRM", time_scaled =FALSE,
+                     precision=6, data_names = list(), ...) {
   #### Check model argument
   if (model=="IRMt") {
     model = "IRM"
@@ -118,8 +119,8 @@ LogLikRM <- function(data, paramDf, model="IRM", time_scaled =FALSE, data_names 
   if (!model %in% c("IRM", "PCRM")) stop("model must be 'IRM', 'PCRM', 'IRMt' or 'PCRMt'")
 
   #### Check data formatting ####
-  # ToDo
-  data <- rename(data, ...)
+  tryCatch(data <- rename(data, ...),
+           error = function(e) stop(paste0("Error renaming data columns. Probably a column name does not exist, or we tried to overwrite an already existing column.\nCheck whether an argument was misspelled and data name pairs are given in the form expected_name = true_name.\nUsed input for renaming columns:\n", paste(names(list(...)), list(...), sep="=", collapse = ", "))))
 
 
   #### Get information from paramDf ####
@@ -143,8 +144,8 @@ LogLikRM <- function(data, paramDf, model="IRM", time_scaled =FALSE, data_names 
     thetas_1 <- c(1e-32, t(paramDf[,paste("theta",1:(nRatings-1), sep = "")]), 1e+64)
     thetas_2 <- c(1e-32, t(paramDf[,paste("theta",1:(nRatings-1), sep = "")]), 1e+64)
   } else {
-    thetas_1 <- c(1e-32, t(paramDf[,paste("thetaUpper",1:(nRatings-1), sep = "")]), 1e+64)
-    thetas_2 <- c(1e-32, t(paramDf[,paste("thetaLower",1:(nRatings-1), sep="")]), 1e+64)
+    thetas_1 <- c(1e-32, t(paramDf[,paste("thetaLower",1:(nRatings-1), sep = "")]), 1e+64)
+    thetas_2 <- c(1e-32, t(paramDf[,paste("thetaUpper",1:(nRatings-1), sep="")]), 1e+64)
   }
   #### Check for column names given ####
   names_missing <- !(c("condition","response","stimulus","rating", "rt", "sbj", "correct") %in% names(data_names))
@@ -152,11 +153,20 @@ LogLikRM <- function(data, paramDf, model="IRM", time_scaled =FALSE, data_names 
                   setNames(as.list(c("condition","response","stimulus","rating", "rt", "sbj", "correct")[names_missing]),
                            c("condition","response","stimulus","rating", "rt", "sbj", "correct")[names_missing]))
   if (is.null(data[[data_names$condition]])) data[[data_names$condition]] <- 1
-  data <- data %>% mutate(response = if_else(.data[[data_names$response]]==sort(unique(data[[data_names$response]]))[1],1,2),
-                          stimulus = if_else(.data[[data_names$stimulus]]==sort(unique(data[[data_names$stimulus]]))[1],1,2),
-                          condition = as.numeric(factor(.data[[data_names$condition]],levels = sort(unique(data[[data_names$condition]])))))
+
+  if (!(all(data[[data_names$response]] %in% c(1,2)) & all(data[[data_names$stimulus]] %in% c(1,2)))) {
+    data <- data %>% mutate(response = if_else(.data[[data_names$response]]==sort(unique(data[[data_names$response]]))[1],1,2),
+                            stimulus = if_else(.data[[data_names$stimulus]]==sort(unique(data[[data_names$stimulus]]))[1],1,2))
+  } else {
+    data$response <- data[[data_names$response]]
+    data$stimulus <- data[[data_names$stimulus]]
+  }
+
+
+  data$condition <- as.numeric(factor(data[[data_names$condition]],levels = sort(unique(data[[data_names$condition]]))))
+
   if (!is.numeric(data$rating)) {
-    data <- data %>% mutate(rating = as.numeric(as.factor(.data[[data_names$rating]])))
+    data$rating <- as.numeric(as.factor(data[[data_names$rating]]))
   }
   ## Compute the row-wise likelihood of observations
   data <-data %>% mutate(a = paramDf$a,
@@ -179,18 +189,20 @@ LogLikRM <- function(data, paramDf, model="IRM", time_scaled =FALSE, data_names 
     data$wint = 0
   }
   if ("s" %in% names(paramDf)) {
-    data$s = paramDf$s
+    s = paramDf$s
   } else {
-    data$s = 1
+    s = 1
   }
   if (model=="IRM") {
     probs <- dIRM(data$rt, data$response,data$mu1, data$mu2, data$a, data$b,
                   data$th1, data$th2, data$wx,  data$wrt,  data$wint,
-                  data$t0, data$st0, data$s, time_scaled=time_scaled)
+                  data$t0, data$st0, s=s, time_scaled=time_scaled,
+                  precision=precision)
   } else {
     probs <- dPCRM(data$rt, data$response,data$mu1, data$mu2, data$a, data$b,
                    data$th1, data$th2, data$wx,  data$wrt,  data$wint,
-                   data$t0, data$st0, data$s, time_scaled=time_scaled)
+                   data$t0, data$st0, s=s, time_scaled=time_scaled,
+                   precision=precision)
   }
 
   ## Produce output as log-Likelihood

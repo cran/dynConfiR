@@ -11,11 +11,11 @@ dynWEV, and 2DSD confidence models}
 \usage{
 predictWEV_Conf(paramDf, model = "dynaViTE", maxrt = 15,
   subdivisions = 100L, simult_conf = FALSE, stop.on.error = FALSE,
-  precision = 1e-05, .progress = TRUE)
+  precision = 3, .progress = TRUE)
 
 predictWEV_RT(paramDf, model = NULL, maxrt = 9, subdivisions = 100L,
   minrt = NULL, simult_conf = FALSE, scaled = FALSE, DistConf = NULL,
-  precision = 1e-05, .progress = TRUE)
+  precision = 3, .progress = TRUE)
 }
 \arguments{
 \item{paramDf}{a list or dataframe with one row. Column names should match the names
@@ -78,11 +78,11 @@ respective outputs of the integration routine used for the computation.
 decision and confidence ratings, \code{predictWEV_RT} computes the predicted
 RT distribution (density) in the 2DSD Model (Pleskac & Busemeyer, 2010) and the
 dynWEV model (Hellmann et al., 2023), given specific parameter constellations.
-See \code{\link{dWEV}} and \code{\link{d2DSD}} for more information about parameters.
+See \code{\link{ddynaViTE}} and \code{\link{d2DSD}} for more information about parameters.
 }
 \details{
 The function \code{predictWEV_Conf} consists merely of an integration of
-the response time density, \code{\link{dWEV}} and \code{\link{d2DSD}}, over the response time in a reasonable
+the response time density, \code{\link{ddynaViTE}} and \code{\link{d2DSD}}, over the response time in a reasonable
 interval (\code{t0} to \code{maxrt}). The function \code{predictWEV_RT} wraps these density
 functions to a parameter set input and a data.frame output.
 For the argument \code{paramDf}, the output of the fitting function \code{\link{fitRTConf}}

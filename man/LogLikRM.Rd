@@ -8,7 +8,7 @@
 \title{Log-Likelihood functions for the independent and partially anti-correlated race models of confidence}
 \usage{
 LogLikRM(data, paramDf, model = "IRM", time_scaled = FALSE,
-  data_names = list(), ...)
+  precision = 6, data_names = list(), ...)
 }
 \arguments{
 \item{data}{a dataframe where each row is one trial. Containing following variables:
@@ -33,6 +33,8 @@ for symmetric thresholds only by \code{theta1}, \code{theta2},.... (see Details 
 time_scaled is set to TRUE.)}
 
 \item{time_scaled}{logical. Whether the confidence measure should be scaled by 1/sqrt(rt). Default: TRUE.}
+
+\item{precision}{numerical scalar. Precision of calculation for integration over t0.}
 
 \item{data_names}{list. Possibility of giving alternative column names for the variables in the data. By default column names are identical to the
 ones given in the data argument description.}
@@ -88,7 +90,6 @@ data <- rPCRM(200, mu1=ifelse(stimulus==1, 1, -1)*discriminability*0.5,
              a=2, b=1.8, t0=0.2, st0=0, wx=0.7, wint=0.3, wrt=0)
 # discretize confidence ratings (only 2 steps: unsure vs. sure)
 data$rating <- as.numeric(cut(data$conf, breaks = c(0, 3, Inf), include.lowest = TRUE))
-data$participant = 1
 data$stimulus <- stimulus
 data$discriminability <- discriminability
 data <- data[data$response!=0, ] # drop not finished decision processes

@@ -51,7 +51,11 @@
 #' @param szb numeric. Between-trial variability in starting point of the second accumulator.
 #'
 #' @param time_scaled logical. Whether the confidence measure should be time-dependent. See Details.
-#' @param step_width numeric. Step size for the integration in t0 (motor time). Default: 1e-6.
+#' @param precision numerical scalar value. Precision of calculation. Determines the
+#' step size of integration w.r.t. `t0`.
+#' Represents the number of decimals precisely computed on average. Default is 6.
+#' @param step_width numeric. Alternative way to define the precision of integration
+#' w.r.t. `t0` by directly providing the step size for the integration.
 #'
 #' @param n integer. The number of samples generated.
 #' @param delta numeric. Discretization step size for simulations in the stochastic process
@@ -100,7 +104,7 @@
 #' set to 0.
 #'
 #' @note Similarly to the drift diffusion models (like \code{ddiffusion} and
-#' \code{\link{dWEV}}), `s1` and `s2` are scaling factors (`s1` scales: \code{mu1} and  \code{a},
+#' \code{\link{ddynaViTE}}), `s1` and `s2` are scaling factors (`s1` scales: \code{mu1} and  \code{a},
 #' `s2` scales: \code{mu2} and \code{b}, and depending on response: if `response=2`, `s1` scales
 #' \code{th1},\code{th2},and \code{wrt}), otherwise `s2` is the scaling factor. It is sometimes
 #' assumed (Moreno-Bote, 2010), that both noise terms are equal, then they should definitely be
@@ -190,7 +194,8 @@
 dIRM <- function (rt,response=1, mu1, mu2, a, b,
                   th1, th2, wx=1, wrt=0, wint=0,
                   t0=0, st0=0, s1=1, s2=1, s=NULL,
-                  time_scaled = TRUE, step_width=NULL)
+                  time_scaled = TRUE, precision=6,
+                  step_width=NULL)
 {
   # for convenience accept data.frame as first argument.
   if (is.data.frame(rt)) {
@@ -198,10 +203,15 @@ dIRM <- function (rt,response=1, mu1, mu2, a, b,
     rt <- rt$rt
   }
   if (is.null(step_width)) {
-    step_width = 0.089045 * exp(-1.037580*4)
+    step_width = 0.4578627727708822 * exp(-0.8466054539598147*precision)
+    #step_width = 0.089045 * exp(-1.037580*precision)
+    # step_width = 0.089045 * exp(-1.037580*4)
   } else if (step_width>1) {
-    step_width = 0.089045 * exp(-1.037580*step_width)
+    step_width = 0.4578627727708822 * exp(-0.8466054539598147*step_width)
+    #step_width = 0.089045 * exp(-1.037580*step_width)
   }
+
+  # print(step_width)
   if (any(c(a<=0, b<=0))) {stop("Both thresholds (a  and b) must be positive")}
   if (any(c(s1<=0,s2<=0) )) {stop("s1 and s2 must be positive")}
   if (any(t0<0)) {stop("Non-decision time, t0, has to be non-negative")}
@@ -254,7 +264,7 @@ dIRM2 <- function (rt,response=1, mu1, mu2, a, b,
                   t0=0, st0=0, s1=1, s2=1,
                   smu1 = 0, smu2 = 0, sza=0, szb=0,
                    s=NULL,
-                  time_scaled = TRUE, step_width=NULL)
+                  time_scaled = TRUE, precision=6, step_width=NULL)
 {
   # for convenience accept data.frame as first argument.
   if (is.data.frame(rt)) {
@@ -262,9 +272,12 @@ dIRM2 <- function (rt,response=1, mu1, mu2, a, b,
     rt <- rt$rt
   }
   if (is.null(step_width)) {
-    step_width = 0.089045 * exp(-1.037580*4)
+    step_width = 0.4578627727708822 * exp(-0.8466054539598147*precision)
+    #step_width = 0.089045 * exp(-1.037580*precision)
+    # step_width = 0.089045 * exp(-1.037580*4)
   } else if (step_width>1) {
-    step_width = 0.089045 * exp(-1.037580*step_width)
+    step_width = 0.4578627727708822 * exp(-0.8466054539598147*step_width)
+    #step_width = 0.089045 * exp(-1.037580*step_width)
   }
   if (any(c(a<=0, b<=0))) {stop("Both thresholds (a  and b) must be positive")}
   if (any(c(s1<=0,s2<=0) )) {stop("s1 and s2 must be positive")}
@@ -315,6 +328,74 @@ dIRM2 <- function (rt,response=1, mu1, mu2, a, b,
 
 
 
+#' @rdname RaceModels
+#' @export
+dIRM3 <- function (rt,response=1, mu1, mu2, a, b,
+                   th1, th2, wx=1, wrt=0, wint=0,
+                   t0=0, st0=0, s1=1, s2=1,
+                   smu1 = 0, smu2 = 0, s=NULL,
+                   time_scaled = TRUE, precision=6, step_width=NULL)
+{
+  # for convenience accept data.frame as first argument.
+  if (is.data.frame(rt)) {
+    response <- rt$response
+    rt <- rt$rt
+  }
+  if (is.null(step_width)) {
+    step_width = 0.4578627727708822 * exp(-0.8466054539598147*precision)
+    #step_width = 0.089045 * exp(-1.037580*precision)
+    # step_width = 0.089045 * exp(-1.037580*4)
+  } else if (step_width>1) {
+    step_width = 0.4578627727708822 * exp(-0.8466054539598147*step_width)
+    #step_width = 0.089045 * exp(-1.037580*step_width)
+  }
+  if (any(c(a<=0, b<=0))) {stop("Both thresholds (a  and b) must be positive")}
+  if (any(c(s1<=0,s2<=0) )) {stop("s1 and s2 must be positive")}
+  if (any(c(smu1<0,smu2<0) )) {stop("smu1 and smu2 must be non-negative")}
+  if (any(t0<0)) {stop("Non-decision time, t0, has to be non-negative")}
+  if (any(st0<0)) {stop("Non-decision time range, st0, has to be non-negative")}
+  if (!missing(s)) {
+    if (s<=0) stop("s must be positive")
+    s1 <- s
+    s2 <- s
+    if (xor(missing(s1), missing(s2))) {
+      warning("Argument s and s1 (or s2) provided. Only s is used! Maybe check for spelling mistakes")
+      s1 <- s
+      s2 <- s
+    }
+  }
+
+  nn <- length(rt)
+  if (!time_scaled) {
+    wrt <- 0
+    wint <- 0
+    wx <- 1
+  }
+
+  pars <- prepare_RaceModel_parameter2(response = response,
+                                       mu1, mu2,
+                                       a, b,
+                                       s1, s2, th1, th2,
+                                       t0, st0,
+                                       wx, wrt, wint,
+                                       smu1, smu2,
+                                       0, 0,
+                                       nn)
+  densities <- vector("numeric",length=nn)
+  for (i in seq_len(length(pars$parameter_indices))) {
+    ok_rows <- pars$parameter_indices[[i]]
+
+    densities[ok_rows] <- d_IRM3 (rt[ok_rows]-pars$params[ok_rows[1],17],
+                                  pars$params[ok_rows[1],1:14],
+                                  pars$params[ok_rows[1],18],
+                                  step_width)
+  }
+  abs(densities)
+}
+
+
+
+
 
 
 
@@ -325,7 +406,8 @@ dIRM2 <- function (rt,response=1, mu1, mu2, a, b,
 dPCRM <- function (rt,response=1, mu1, mu2, a, b,
                    th1, th2, wx=1, wrt=0, wint=0,
                    t0=0, st0=0, s1=1, s2=1, s=NULL,
-                   time_scaled = TRUE, step_width=NULL)
+                   time_scaled = TRUE, precision=6,
+                   step_width=NULL)
 {
   # for convenience accept data.frame as first argument.
   if (is.data.frame(rt)) {
@@ -333,9 +415,12 @@ dPCRM <- function (rt,response=1, mu1, mu2, a, b,
     rt <- rt$rt
   }
   if (is.null(step_width)) {
-    step_width = 0.089045 * exp(-1.037580*4)
+    step_width = 0.4578627727708822 * exp(-0.8466054539598147*precision)
+    #step_width = 0.089045 * exp(-1.037580*precision)
+    # step_width = 0.089045 * exp(-1.037580*4)
   } else if (step_width>1) {
-    step_width = 0.089045 * exp(-1.037580*step_width)
+    step_width = 0.4578627727708822 * exp(-0.8466054539598147*step_width)
+    #step_width = 0.089045 * exp(-1.037580*step_width)
   }
   if (any(c(a<=0, b<=0))) {stop("Both thresholds (a  and b) must be positive")}
   if (any(c(s1<=0,s2<=0) )) {stop("s must be positive")}
@@ -386,7 +471,7 @@ rIRM <- function (n, mu1, mu2, a, b,
                  t0=0, st0=0, s1=1, s2=1, s=NULL,
                  smu1 = 0, smu2=0,
                  sza = 0, szb=0,
-                 time_scaled = TRUE, step_width=NULL,
+                 time_scaled = TRUE,
                  delta=0.01, maxrt=15)
 {
   if (any(missing(mu1), missing(mu2),
@@ -460,7 +545,7 @@ rPCRM <- function (n, mu1, mu2, a, b,
                   t0=0, st0=0, s1=1, s2=1, s=NULL,
                   smu1 = 0, smu2=0,
                   sza = 0, szb=0,
-                  time_scaled = TRUE, step_width=NULL,
+                  time_scaled = TRUE,
                   delta=0.01, maxrt=15)
 {
   if (any(missing(mu1), missing(mu2),

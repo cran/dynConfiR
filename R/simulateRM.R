@@ -101,7 +101,7 @@
 #'   simus$rating <- factor(simus$rating, labels=c("unsure", "sure"))
 #'   ggplot(simus, aes(x=rt, group=interaction(correct, rating),
 #'                     color=as.factor(correct), linetype=rating))+
-#'     geom_density(size=1.2)+
+#'     geom_density(linewidth=1.2)+
 #'     facet_grid(rows=vars(condition), labeller = "label_both")
 #' }
 #'
@@ -122,7 +122,7 @@
 #'   # Compute Gamma correlation coefficients between
 #'   # confidence and other behavioral measures
 #'   # output will be a list
-#'   simu_list <- simulateRM(paramDf, model="IRMt", gamma=TRUE)
+#'   simu_list <- simulateRM(paramDf, model="IRMt", gamma=TRUE, n=200)
 #'   simu_list
 #' }
 #'
@@ -388,9 +388,9 @@ rRM_Kiani <- function (paramDf, n=1e+4, time_scaled=FALSE,
 
   simus$rating <- 1
   simus$rating[simus$response==1] <- as.numeric(as.character(cut(simus$conf[simus$response==1],
-                                                                        breaks=thetas_upper, labels = levels_upper)))
-  simus$rating[simus$response==2] <- as.numeric(as.character(cut(simus$conf[simus$response==2],
                                                                         breaks=thetas_lower, labels = levels_lower)))
+  simus$rating[simus$response==2] <- as.numeric(as.character(cut(simus$conf[simus$response==2],
+                                                                        breaks=thetas_upper, labels = levels_upper)))
 
 
 

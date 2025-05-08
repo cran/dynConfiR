@@ -1,4 +1,4 @@
-## ---- include = FALSE---------------------------------------------------------
+## ----include = FALSE----------------------------------------------------------
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>"
@@ -10,14 +10,14 @@ library(dplyr)
 library(ggplot2)
 
 
-## ---- echo=TRUE---------------------------------------------------------------
+## ----echo=TRUE----------------------------------------------------------------
 data("ConfidenceOrientation")
 part8 <- ConfidenceOrientation %>%
   filter(participant == 8) %>%
   select(SOA, stimulus, response, rt, disc_rating)
 head(part8)
 
-## ---- echo=FALSE--------------------------------------------------------------
+## ----echo=FALSE---------------------------------------------------------------
 parfit <- data.frame(v1 = 0.0372688024414027, v2 = 0.0297559327941849, 
     v3 = 0.228682139296959, v4 = 0.907332624555809, v5 = 1.51928135797365, 
     sv = 0.703366746805957, a = 1.9909337760955, z = 0.484042545790362, 
@@ -41,10 +41,10 @@ parfit
 ## -----------------------------------------------------------------------------
 predictedResponses <- 
   predictWEV_Conf(parfit, "dynWEV", simult_conf = TRUE, 
-                  precision = 1e-3, maxrt = 5, subdivisions = 50)
+                  precision = 3, maxrt = 5, subdivisions = 50)
 predictedRTdist <- 
   predictWEV_RT(parfit, "dynWEV", simult_conf = TRUE, 
-  maxrt = 5, precision = 1e-3, subdivisions = 50,
+  maxrt = 5, precision = 3, subdivisions = 50,
   scaled=TRUE, DistConf = predictedResponses)
 print(head(predictedResponses))
 print(head(predictedRTdist))
@@ -71,7 +71,7 @@ predictedRTdist <- predictedRTdist %>%
             densscaled = mean(densscaled), .groups = "drop")
 
 
-## ---- out.width="100%", fig.dim=c(6, 8)---------------------------------------
+## ----out.width="100%", fig.dim=c(6, 8)----------------------------------------
 ggplot(empirical_response_dist, aes(x=rating, y=p)) +
   geom_bar(aes(fill=as.factor(correct)), stat="identity")+
   geom_point(data=predictedResponses) +
@@ -79,12 +79,12 @@ ggplot(empirical_response_dist, aes(x=rating, y=p)) +
   facet_grid(cols=vars(correct), rows=vars(condition))
 
 
-## ---- out.width="100%", fig.dim=c(6, 8)---------------------------------------
+## ----out.width="100%", fig.dim=c(6, 8)----------------------------------------
 ggplot(subset(part8, rt<18), aes(x=rt, color=as.factor(correct))) +
-  geom_density(aes(linetype="Observed"), size=1.2)+
+  geom_density(aes(linetype="Observed"), linewidth=1)+
   geom_line(data = predictedRTdist, 
             aes(y=densscaled, linetype="Prediction"), 
-            size=1.2)+
+            linewidth=1)+
   scale_color_discrete(name="Accuracy")+
   scale_linetype_discrete(name="")+
   theme(legend.position = "bottom")+

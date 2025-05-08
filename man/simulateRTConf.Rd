@@ -16,7 +16,7 @@ simulateRTConf(paramDf, n = 10000, model = NULL, gamma = FALSE,
 \item{n}{integer. The number of samples (per condition and stimulus direction) generated.
 Total number of samples is \code{n*nConditions*length(stimulus)}.}
 
-\item{model}{character scalar. One of "dynaViTE", "dynWEV", "2DSD", "2DSDT", "DDConf",
+\item{model}{character scalar. One of "dynaViTE", "dynWEV", "2DSD", "2DSDT",
 "IRM", "PCRM", "IRMt", or "PCRMt". Could also be passed as a column in the paramDf argument.}
 
 \item{gamma}{logical. If TRUE, the gamma correlation between confidence ratings, rt and accuracy is
@@ -100,7 +100,7 @@ paramDf2 <- data.frame(model="PCRMt", a=2,b=2, v1=0.5, v2=1, t0=0.1,st0=0,
 paramDf <- full_join(paramDf1, paramDf2)
 paramDf  # each model parameters sets hat its relevant parameters
 # Split paramDf by model (maybe also other columns) and simulate data
-simus <- paramDf |> group_by(model) |>
+simus <- paramDf \%>\% group_by(model) \%>\%
  reframe(simulateRTConf(cbind(cur_group(), pick(everything())), n=200, simult_conf = TRUE))
 head(simus)
 

@@ -53,10 +53,11 @@ static double Phi(double x); //CDF of standard normal distribution
 // PDF and RNG for IRM
 #include "Density_IRM.h"
 #include "Density_IRM2.h"
+#include "Density_IRM31.h"
 // PDF and RNG for PCRM
 #include "Density_PCRM.h"
-// PDF and RNG for DDMConf
-#include "Density_DDMConf.h"
+// PDF and RNG for DDConf
+#include "Density_DDConf.h"
 
 
 static double Phi (double x)  // The distribution function of the standard normal distribution.

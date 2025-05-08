@@ -12,7 +12,7 @@
 #' @param paramDf a list or dataframe with one row with the required parameters.
 #' @param n integer. The number of samples (per condition and stimulus direction) generated.
 #' Total number of samples is \code{n*nConditions*length(stimulus)}.
-#' @param model character scalar. One of "dynaViTE", "dynWEV", "2DSD", "2DSDT", "DDConf",
+#' @param model character scalar. One of "dynaViTE", "dynWEV", "2DSD", "2DSDT",
 #' "IRM", "PCRM", "IRMt", or "PCRMt". Could also be passed as a column in the paramDf argument.
 #' @param gamma logical. If TRUE, the gamma correlation between confidence ratings, rt and accuracy is
 #' computed.
@@ -85,7 +85,7 @@
 #' paramDf <- full_join(paramDf1, paramDf2)
 #' paramDf  # each model parameters sets hat its relevant parameters
 #' # Split paramDf by model (maybe also other columns) and simulate data
-#' simus <- paramDf |> group_by(model) |>
+#' simus <- paramDf %>% group_by(model) %>%
 #'  reframe(simulateRTConf(cbind(cur_group(), pick(everything())), n=200, simult_conf = TRUE))
 #' head(simus)
 #'

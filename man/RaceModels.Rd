@@ -10,27 +10,33 @@
 \alias{rPCRM}
 \alias{racemodels}
 \alias{dIRM2}
+\alias{dIRM3}
 \title{Independent and partially anti-correlated Race Model for Decision Confidence}
 \usage{
 dIRM(rt, response = 1, mu1, mu2, a, b, th1, th2, wx = 1, wrt = 0,
   wint = 0, t0 = 0, st0 = 0, s1 = 1, s2 = 1, s = NULL,
-  time_scaled = TRUE, step_width = NULL)
+  time_scaled = TRUE, precision = 6, step_width = NULL)
 
 dIRM2(rt, response = 1, mu1, mu2, a, b, th1, th2, wx = 1, wrt = 0,
   wint = 0, t0 = 0, st0 = 0, s1 = 1, s2 = 1, smu1 = 0, smu2 = 0,
-  sza = 0, szb = 0, s = NULL, time_scaled = TRUE, step_width = NULL)
+  sza = 0, szb = 0, s = NULL, time_scaled = TRUE, precision = 6,
+  step_width = NULL)
+
+dIRM3(rt, response = 1, mu1, mu2, a, b, th1, th2, wx = 1, wrt = 0,
+  wint = 0, t0 = 0, st0 = 0, s1 = 1, s2 = 1, smu1 = 0, smu2 = 0,
+  s = NULL, time_scaled = TRUE, precision = 6, step_width = NULL)
 
 dPCRM(rt, response = 1, mu1, mu2, a, b, th1, th2, wx = 1, wrt = 0,
   wint = 0, t0 = 0, st0 = 0, s1 = 1, s2 = 1, s = NULL,
-  time_scaled = TRUE, step_width = NULL)
+  time_scaled = TRUE, precision = 6, step_width = NULL)
 
 rIRM(n, mu1, mu2, a, b, wx = 1, wrt = 0, wint = 0, t0 = 0, st0 = 0,
   s1 = 1, s2 = 1, s = NULL, smu1 = 0, smu2 = 0, sza = 0, szb = 0,
-  time_scaled = TRUE, step_width = NULL, delta = 0.01, maxrt = 15)
+  time_scaled = TRUE, delta = 0.01, maxrt = 15)
 
 rPCRM(n, mu1, mu2, a, b, wx = 1, wrt = 0, wint = 0, t0 = 0, st0 = 0,
   s1 = 1, s2 = 1, s = NULL, smu1 = 0, smu2 = 0, sza = 0, szb = 0,
-  time_scaled = TRUE, step_width = NULL, delta = 0.01, maxrt = 15)
+  time_scaled = TRUE, delta = 0.01, maxrt = 15)
 }
 \arguments{
 \item{rt}{a numeric vector of RTs. For convenience also a \code{data.frame} with
@@ -78,7 +84,12 @@ If both (\code{s1}, \code{s2} and \code{s}) are given, only \code{s1} and \code{
 
 \item{time_scaled}{logical. Whether the confidence measure should be time-dependent. See Details.}
 
-\item{step_width}{numeric. Step size for the integration in t0 (motor time). Default: 1e-6.}
+\item{precision}{numerical scalar value. Precision of calculation. Determines the
+step size of integration w.r.t. \code{t0}.
+Represents the number of decimals precisely computed on average. Default is 6.}
+
+\item{step_width}{numeric. Alternative way to define the precision of integration
+w.r.t. \code{t0} by directly providing the step size for the integration.}
 
 \item{smu1}{numeric. Between-trial variability in the drift rate of the first accumulator.}
 
@@ -158,7 +169,7 @@ set to 0.
 }
 \note{
 Similarly to the drift diffusion models (like \code{ddiffusion} and
-\code{\link{dWEV}}), \code{s1} and \code{s2} are scaling factors (\code{s1} scales: \code{mu1} and  \code{a},
+\code{\link{ddynaViTE}}), \code{s1} and \code{s2} are scaling factors (\code{s1} scales: \code{mu1} and  \code{a},
 \code{s2} scales: \code{mu2} and \code{b}, and depending on response: if \code{response=2}, \code{s1} scales
 \code{th1},\code{th2},and \code{wrt}), otherwise \code{s2} is the scaling factor. It is sometimes
 assumed (Moreno-Bote, 2010), that both noise terms are equal, then they should definitely be

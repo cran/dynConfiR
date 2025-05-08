@@ -10,7 +10,7 @@
 \usage{
 fitRTConf(data, model = "dynWEV", fixed = list(sym_thetas = FALSE),
   init_grid = NULL, grid_search = TRUE, data_names = list(),
-  nRatings = NULL, restr_tau = Inf, precision = 1e-05, logging = FALSE,
+  nRatings = NULL, restr_tau = Inf, precision = 3, logging = FALSE,
   opts = list(), optim_method = "bobyqa", useparallel = FALSE,
   n.cores = NULL, ...)
 }
@@ -34,7 +34,7 @@ and logging messages;
 if non-unique or missing and \code{logging =TRUE}, 999 will be used then)
 }}
 
-\item{model}{character scalar. One of "dynWEV", "2DSD", "IRM", "PCRM", "IRMt", "PCRMt", or "DDMConf" for the model to be fit.}
+\item{model}{character scalar. One of "dynWEV", "2DSD", "IRM", "PCRM", "IRMt", "PCRMt", or "DDConf" for the model to be fit.}
 
 \item{fixed}{list. List with parameter-value pairs for parameters that should not be fitted. See Details.}
 
@@ -57,10 +57,10 @@ If given, ratings has to be given as factor or integer.}
 
 \item{restr_tau}{numerical or \code{Inf} or \code{"simult_conf"}. For 2DSD and dynWEV only.
 Upper bound for tau. Fits will be in the interval (0,\code{restr_tau}). If FALSE tau will be unbound.
-For \code{"simult_conf"}, see the documentation of \code{\link{d2DSD}} and \code{\link{dWEV}}}
+For \code{"simult_conf"}, see the documentation of \code{\link{d2DSD}} and \code{\link{ddynaViTE}}}
 
-\item{precision}{numerical scalar. For 2DSD and dynWEV only. Precision of calculation.
-(in the respective models) for the density functions (see \code{\link{dWEV}} for more information).}
+\item{precision}{numeric. Precision of calculation for the density functions
+(see \code{\link{ddynaViTE}} and \code{\link{dPCRM}} for more information).}
 
 \item{logging}{logical. If \code{TRUE}, a folder 'autosave/fit\strong{model}' is created and
 messages about the process are printed in a logging file and to console (depending
@@ -95,11 +95,11 @@ about fixed and not fitted parameters.
 }
 \description{
 Fits the parameters of different models of response time and confidence, including
-the 2DSD model (Pleskac & Busemeyer, 2010), dynWEV, DDMConf, and various
+the 2DSD model (Pleskac & Busemeyer, 2010), dynWEV, DDConf, and various
 flavors of race models (Hellmann et al., 2023). Which model to fit is
 specified by the argument \code{model}.
 Only a ML method is implemented.
-See \code{\link{dWEV}}, \code{\link{d2DSD}}, and \code{\link{dRM}} for more
+See \code{\link{ddynaViTE}}, \code{\link{d2DSD}}, and \code{\link{dRM}} for more
 information about the parameters and Details for not-fitted parameters.
 }
 \details{
@@ -175,10 +175,10 @@ from top to bottom
 # We use one of the implemented models, "dynWEV"
 # 1. Generate data
 # data with positive drift (stimulus = "upper")
-data <- rWEV(20, a=2,v=0.5,t0=0.2,z=0.5, sz=0.1,sv=0.1, st0=0,  tau=4, s=1, w=0.3)
+data <- rdynaViTE(20, a=2,v=0.5,t0=0.2,z=0.5, sz=0.1,sv=0.1, st0=0,  tau=4, s=1, w=0.3)
 data$stimulus <- "upper"
 # data with negtive drift (stimulus = "lower") but same intensity
-data2 <- rWEV(100, a=2,v=-0.5,t0=0.2,z=0.5,sz=0.1,sv=0.1, st0=0,  tau=4, s=1, w=0.3)
+data2 <- rdynaViTE(100, a=2,v=-0.5,t0=0.2,z=0.5,sz=0.1,sv=0.1, st0=0,  tau=4, s=1, w=0.3)
 data2$stimulus <- "lower"
 data <- rbind(data, data2)
 # Transfer response column and add dummy condition column

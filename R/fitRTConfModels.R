@@ -2,8 +2,8 @@
 #'
 #' This function is a wrapper of the function \code{\link{fitConfModel}} (see
 #' there for more information). It calls the function for every possible combination
-#' of model and participant in `model` and \code{data} respectively.
-#' Also, see \code{\link{dWEV}}, \code{\link{d2DSD}}, \code{\link{dDDMConf}},
+#' of model and participant/subject in `model` and \code{data} respectively.
+#' Also, see \code{\link{ddynaViTE}}, \code{\link{d2DSD}}, \code{\link{dDDConf}},
 #' and \code{\link{dRM}} for more
 #' information about the parameters.
 #'
@@ -17,9 +17,11 @@
 #'   * \code{stimulus} (encoding the stimulus category in a binary choice task),
 #'   * \code{response} (encoding the decision response),
 #'   * \code{correct} (encoding whether the decision was correct; values in 0, 1)
-#' * \code{sbj} (giving the subject ID; the models given in the second argument are fitted for each
+#' * \code{sbj} alternatively `subject` or `participant` (giving the subject ID; the models given in the second argument are fitted for each
 #'   subject individually. (Furthermore, if `logging = TRUE`, the ID is used in files
-#'   saved with interim results and logging messages.))
+#'   saved with interim results and logging messages.) The output data frame reused the
+#'   name of the column in the input (i.e. the output contains a `subject` column, if
+#'   the input contains `subject` instead of `sbj`).)
 #' @param models character vector with following possible elements "dynWEV", "2DSD", "IRM", "PCRM", "IRMt", and "PCRMt"  for the models to be fit.
 #' @param nRatings integer. Number of rating categories. If `NULL`, the maximum of
 #' `rating` and `length(unique(rating))` is used. This argument is especially
@@ -28,7 +30,7 @@
 #' @param fixed list. List with parameter value pairs for parameters that should not be fitted. (see Details).
 #' @param restr_tau numerical or `Inf` or `"simult_conf"`. Used for 2DSD and dynWEV only. Upper bound for tau.
 #' Fits will be in the interval (0,`restr_tau`). If `FALSE` tau will be unbound. For `"simult_conf"`, see the documentation of
-#' \code{\link{d2DSD}} and \code{\link{dWEV}}
+#' \code{\link{d2DSD}} and \code{\link{ddynaViTE}}
 #' @param grid_search logical. If `FALSE`, the grid search before the optimization
 #' algorithm is omitted. The fitting is then started with a mean parameter set
 #' from the default grid. (Default: `TRUE`)
@@ -43,7 +45,7 @@
 #' @param logging logical. If `TRUE`, a folder 'autosave/fit**model**' is created and
 #' messages about the process are printed in a logging file and to console (depending
 #' on OS). Additionally intermediate results are saved in a `.RData` file with the
-#' participant ID in the name.
+#' participant/subject ID in the name.
 #' @param parallel "models", "single", "both" or `FALSE`. If `FALSE` no parallelization
 #' is used in the fitting process. If "models" the fitting process is parallelized over
 #' participants and models (i.e. over the calls for fitting functions). If "single"
@@ -51,8 +53,8 @@
 #' optimization processes for different start points, but see \code{\link{fitRTConf}}).
 #' If "both", parallelization is done hierarchical. For small number of
 #' models and participants "single" or "both" is preferable. Otherwise, you may use "models".
-#' @param precision numerical scalar. For 2DSD and dynWEV only. Precision of calculation.
-#' (in the respective models) for the density functions (see \code{\link{dWEV}} for more information).
+#' @param precision numerical numeric. Precision of calculation for the density functions
+#'  (see \code{\link{ddynaViTE}} and \code{\link{dPCRM}} for more information).
 #' @param n.cores integer vector or `NULL`. If \code{parallel} is "models" or "single", a single
 #' integer for the number of cores used for parallelization is required. If
 #' \code{parallel} is "both", two values are required. The first for the number of parallel
@@ -114,7 +116,7 @@
 #' discriminability <- sample(c(1, 2), 400, replace=TRUE)
 #'
 #' # generate data for participant 1
-#' data <- rWEV(400, a=2, v=stimulus*discriminability*0.5,
+#' data <- rdynaViTE(400, a=2, v=stimulus*discriminability*0.5,
 #'              t0=0.2, z=0.5, sz=0.1, sv=0.1, st0=0,  tau=4, s=1, w=0.3)
 #' # discretize confidence ratings (only 2 steps: unsure vs. sure)
 #' data$rating <- as.numeric(cut(data$conf, breaks = c(-Inf, 1, Inf), include.lowest = TRUE))
@@ -122,7 +124,7 @@
 #' data$stimulus <- stimulus
 #' data$discriminability <- discriminability
 #' # generate data for participant 2
-#' data2 <- rWEV(400, a=2.5, v=stimulus*discriminability*0.7,
+#' data2 <- rdynaViTE(400, a=2.5, v=stimulus*discriminability*0.7,
 #'              t0=0.1, z=0.7, sz=0, sv=0.2, st0=0,  tau=2, s=1, w=0.5)
 #' data2$rating <- as.numeric(cut(data$conf, breaks = c(-Inf, 0.3, Inf), include.lowest = TRUE))
 #' data2$participant = 2
@@ -154,12 +156,25 @@
 fitRTConfModels <- function(data, models = c("dynaViTE", "2DSD", "PCRMt"),
                       nRatings = NULL, fixed = list(sym_thetas = FALSE), restr_tau=Inf,
                       grid_search=TRUE,
-                      opts=list(), optim_method = "bobyqa", logging=FALSE, precision=1e-5,
+                      opts=list(), optim_method = "bobyqa", logging=FALSE, precision=3,
                       parallel = TRUE, n.cores=NULL, ...){ #  ?ToDO: vary_sv=FALSE, RRT=NULL, vary_tau=FALSE
-  if (any(!grepl("dynaViTE|IRM|PCRM|IRMt|PCRMt|dynWEV|2DSD|DDMConf", models))) {
+  # Check if package 'logger' is installed, if logging is wished
+  if (logging && !requireNamespace("logger", quietly = TRUE)) {
+    warning("Package 'logger' is not installed but needed to log fitting progress.
+            Process continues withouth logging.
+            Interrupt and install 'logger' if logging is needed.", immediate.=TRUE)
+    logging <- FALSE
+  }
+
+  ## Check specification of model-argument
+  if (any(models =="DDMConf")) {
+    warning("DDMConf was renamed DDConf in version 1.0.0! DDConf will be fitted instead!")
+    models[models=="DDMConf"] = "DDConf"
+  }
+  if (any(!grepl("dynaViTE|IRM|PCRM|IRMt|PCRMt|dynWEV|2DSD|DDConf", models))) {
     stop("all models must be one of:
     'dynaViTE', 'dynWEV', '2DSDT', '2DSD',
-    'DDMConf', 'IRM', 'IRMt', 'PCRM', or 'PCRMt'")
+    'DDConf', 'IRM', 'IRMt', 'PCRM', or 'PCRMt'")
   }
 
   ### Maybe later: use ...-argument für renaming data-columns and to pass other arguments
@@ -170,8 +185,9 @@ fitRTConfModels <- function(data, models = c("dynaViTE", "2DSD", "PCRMt"),
   #   colrenames <- colrenames[colrenames %in% names(data)]
   #   data <- rename(data, colrenames)
   # }
+
   tryCatch(data <- rename(data, ...),
-           error = function(e) stop("Error renaming data columns. Probably a column name does not exist.\nCheck whether an argument was misspelled and data name pairs are given in the form expected_name = true_name."))
+           error = function(e) stop(paste0("Error renaming data columns. Probably a column name does not exist, or we tried to overwrite an already existing column.\nCheck whether an argument was misspelled and data name pairs are given in the form expected_name = true_name.\nUsed input for renaming columns:\n", paste(names(list(...)), list(...), sep="=", collapse = ", "))))
 
   ### Adapt arguments for individual settings
   if (!("sym_thetas" %in% names(fixed))) fixed["sym_thetas"] <- FALSE

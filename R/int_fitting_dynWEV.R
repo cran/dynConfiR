@@ -29,19 +29,19 @@ fittingdynWEV <- function(df, nConds, nRatings, fixed, sym_thetas,
       if (!(is.numeric(restr_tau) && restr_tau >0)) {stop(paste("restr_tau must be numeric and positive, Inf or 'simult_conf'. But restr_tau=", restr_tau, sep=""))}
       tau = seq(0.2*restr_tau,0.9*restr_tau, length.out = 3)
     }
-    init_grid <- expand.grid(a = c(0.5, 1,1.7, 2.5, 5),               ### a = distance btw. upper and lower bound \in (0,\infty)]
+    init_grid <- expand.grid(a = c(0.8, 2, 3.5),               ### a = distance btw. upper and lower bound \in (0,\infty)]
                              vmin = c(0.01, 0.1, 1.3),                ### vmin = mean drift rate in first condition \in (0,\infty)]
-                             vmax = c(1.4, 2.5, 3.7, 5),              ### vmax = mean drift rate in last condition \in (\vmin,\infty)]
-                             sv = c(0.01, 0.8, 1.5),                  ### sv = SD of drift rate (normal distr.) \in (0,\infty)]
+                             vmax = c(1.4, 3, 5),              ### vmax = mean drift rate in last condition \in (\vmin,\infty)]
+                             sv = c(0.1, 1.5),                  ### sv = SD of drift rate (normal distr.) \in (0,\infty)]
                              z = sum((df$response==1)*df$n)/sum(df$n),### z = mean start point (bias) \in [0,1]
                              sz = c(0.1),                             ### sz = range of possible start points (unif ditr.; in units of a-z) \in [0,1]
-                             t0 = c(0.05, 0.2),                       ### t0 = proportion of minimal motor time of minimal total response time \in [0,1)
-                             st0 = c(0.1,  0.2),                      ### st0 = range of possible motor times (unif. distr.) \in [0, t0/2]
+                             t0 = c(0.2, 0.7),                       ### t0 = proportion of minimal motor time of minimal total response time \in [0,1)
+                             st0 = c(0.2),                      ### st0 = range of possible motor times (unif. distr.) \in [0, t0/2]
                              tau = tau,                               ### tau = post-decisional accumulation time (between 0 and 1, if tau has an upper bound)
                              svis = seq(0.01, 0.5, length.out = 2),   ### svis = variability in visibility accumulation process
                              w = seq(0.3, 0.7, length.out = 3),       ### w = weight bewtween evidence and visibility for confidence judgement
-                             sigvis = seq(0.01, 1, length.out = 3),   ### sigivis = between trial variability in drift rate of the visibility process
-                             lambda = c(0, 0.5, 1, 2))                ### lambda = exponent of accumulation time in the denominator of the confidence variable
+                             sigvis = seq(0.01, 1, length.out = 2),   ### sigivis = between trial variability in drift rate of the visibility process
+                             lambda = c(0, 0.7, 2))                ### lambda = exponent of accumulation time in the denominator of the confidence variable
   }
   # Remove columns for fixed parameters
   init_grid <- init_grid[setdiff(names(init_grid), names(fixed))]
@@ -385,10 +385,11 @@ fittingdynWEV <- function(df, nConds, nRatings, fixed, sym_thetas,
   #### 4. Wrap up results ####
   res <-  data.frame(matrix(nrow=1, ncol=0))
   if(exists("fit") && is.list(fit)){
+    # Save the number of actually fitted parameters by the optimization
     k <- length(fit$par)
     N <- sum(df$n)
-
     p <- fit$par
+
     if (optim_method=="Nelder-Mead") {
       res[,paste("v",1:(nConds), sep="")] <- exp(p[1:(nConds)])
       if (length(fixed)>=1) res <- cbind(res, as.data.frame(fixed))
@@ -453,8 +454,10 @@ fittingdynWEV <- function(df, nConds, nRatings, fixed, sym_thetas,
       # If some rating categories are not used, we fit less thresholds numerically and fill up the
       # rest by the obvious best-fitting thresholds (e.g. +/- Inf for the lowest/highest...)
       res <- fill_thresholds(res, used_cats, actual_nRatings, -1e+24)
+
+      # Get number of truely fitted parameters by adding the added confidence thresholds
+      k <- k + (as.numeric(!sym_thetas)+1)*(actual_nRatings-nRatings)
       nRatings <- actual_nRatings
-      k <- ncol(res)
     }
     if (sym_thetas) {
       parnames <- c(paste("v", 1:nConds, sep=""), 'sv', 'a', 'z', 'sz', 't0','st0', paste("theta", 1:(nRatings-1), sep=""), 'tau', 'w', 'svis','sigvis', 'lambda')
@@ -482,7 +485,7 @@ fittingdynWEV <- function(df, nConds, nRatings, fixed, sym_thetas,
 
 
 neglikelihood_dynWEV_free <-   function(p, data,
-                                        restr_tau, nConds, nRatings, fixed, mint0, simult_conf, sym_thetas, precision=1e-5)
+                                        restr_tau, nConds, nRatings, fixed, mint0, simult_conf, sym_thetas, precision=3)
 {
   # get parameter vector back from real transformations
   paramDf <-  data.frame(matrix(nrow=1, ncol=0))
@@ -537,7 +540,7 @@ neglikelihood_dynWEV_free <-   function(p, data,
 
 
 neglikelihood_dynWEV_bounded <-   function(p, data,
-                                           restr_tau, nConds, nRatings, fixed, mint0, simult_conf, sym_thetas=FALSE, precision=1e-5)
+                                           restr_tau, nConds, nRatings, fixed, mint0, simult_conf, sym_thetas=FALSE, precision=3)
 {
   # get parameter vector back from real transformations
   paramDf <-   data.frame(matrix(nrow=1, ncol=length(p)))
