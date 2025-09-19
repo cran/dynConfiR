@@ -1,7 +1,7 @@
 Type: Package
 Package: dynConfiR
 Title: Dynamic Models for Confidence and Response Time Distributions
-Version: 1.0.0
+Version: 1.1.0
 Authors@R: c(
     person("Sebastian", "Hellmann", , "sebastian.hellmann@tum.de", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-3621-6343")),
@@ -24,8 +24,8 @@ URL: https://github.com/SeHellmann/dynConfiR,
 BugReports: https://github.com/SeHellmann/dynConfiR/issues
 Depends: R (>= 4.0)
 Imports: dplyr, magrittr, minqa, parallel, progress, Rcpp, rlang, stats
-Suggests: covr, ggplot2, Hmisc, knitr, logger, rmarkdown, testthat (>=
-        3.0.0), tidyr
+Suggests: covr, ggplot2, MASS, Hmisc, knitr, logger, rmarkdown,
+        testthat (>= 3.0.0), tidyr
 LinkingTo: Rcpp
 VignetteBuilder: knitr
 Config/testthat/edition: 3
@@ -33,10 +33,10 @@ Encoding: UTF-8
 LazyData: true
 NeedsCompilation: yes
 Repository: CRAN
-RoxygenNote: 7.3.1
-Packaged: 2025-05-08 16:29:33 UTC; go73jec
+RoxygenNote: 7.3.3
+Packaged: 2025-09-19 13:42:00 UTC; go73jec
 Author: Sebastian Hellmann [aut, cre] (ORCID:
     <https://orcid.org/0000-0002-3621-6343>),
   Manuel Rausch [aut, fnd] (ORCID:
     <https://orcid.org/0000-0002-5805-5544>)
-Date/Publication: 2025-05-08 17:00:02 UTC
+Date/Publication: 2025-09-19 14:00:02 UTC

@@ -1,65 +1,41 @@
-fittingRMs <- function(df, model, nConds, nRatings, fixed, sym_thetas, time_scaled,
-                          grid_search, init_grid=NULL, optim_method, opts,
-                          logging, filename,
-                          useparallel, n.cores,
-                          used_cats, actual_nRatings, precision){
+fittingMTLNR <- function(df, nConds, nRatings, fixed, sym_thetas,
+                       grid_search, init_grid=NULL, optim_method, opts,
+                       logging, filename,
+                       useparallel, n.cores,
+                       used_cats, actual_nRatings, precision){
   ## Be sure that the parallel cluster is stopped if anything happens (error or user interupt)
   on.exit(try(stopCluster(cl), silent = TRUE))
 
-  fitted_weights <- NULL
-  if (time_scaled) {   ## Incorporate fixed weight parameters
-    max_par_weight <- 1
-    fixed_ws <- grep(pattern="w", names(fixed), value=TRUE)
-    if (length(fixed_ws)>1) { ## If 2 are fixed the third weight is also fixed, since they have to sum to 1
-      if ((length(fixed_ws)==3) && (sum(as.numeric(fixed[fixed_ws]))!= 1)) stop("Provided weights do not sum to 1!")
-      if ((length(fixed_ws)==2)) fixed[[setdiff(c("wx","wrt", "wint"),fixed_ws)]] <- 1- sum(as.numeric(fixed[fixed_ws]))
-      fitted_weights <- NULL
-      wx <- 0
-      wrt <- 0
-    }
-    if (length(fixed_ws)==1) { ## If only 1 is supplied, one may be fit
-      max_par_weight <- fixed[[fixed_ws]]
-      fitted_weights <- setdiff(c("wx","wrt", "wint"),fixed_ws)[1]
-      wx <- 0
-      wrt <- 0
-      assign(fitted_weights, c(0.1, 0.35, 0.65, 0.9)) # Range of fitted parameter: (0,1),
-      # but this will be multiplied with max_fit_weight after optimisation
-
-    }
-    if (length(fixed_ws)==0) { ## If no weight is supplied, two have to be fit
-      wx <- c(0.025, 0.3, 0.6, 0.9)
-      ## To keep the optimization box-constraint, we fit the second parameter
-      ## as proportion of the rest of 1 after considering wx, i.e.
-      ## wrt(true weight) = (1-wx)*wrt(fitted parameter)
-      wrt <- c(0.05, 0.4, 0.7, 0.9)
-      fitted_weights <- c("wx","wrt")
-    }
-  } else {
-    fitted_weights <- NULL
-    wx = 1
-    wrt = 0
-  }
   ### 1. Generate initial grid for grid search over possible parameter sets ####
   #### Create grid ####
   mint0 <-  min(df$rt)
   if (is.null(init_grid)) {
     # (mint0 < 0.2) {mint0 <- 0.2}
-    init_grid <- expand.grid(vmin = c(0.01, 0.1,0.8, 1.5),         ### vmin = drift rate in first condition \in (0,\infty)]
-                             vmax = c( 1, 2.4, 3.8, 5),          ### vmax = mean drift rate in last condition \in (\vmin,\infty)]
-                             a = c(0.5, 1.2, 2.3),
-                             b = c(0.5, 1.2, 2.3),
-                             #theta0 = c(0.3,1.2, 1.7, 2.5),  ### theta0 = lowest threshold for confidence rating (in difference from threshold / a)
-                             #thetamax = c(1,  2,   3,   4),       ### thetamax = highest threshold for confidence rating (in distance from threshold / a)
+    init_grid <- expand.grid(vmin = c(0.1, 0.8, 3),         ### vmin = drift rate in first condition \in (0,\infty)]
+                             vmax = c( 1, 3, 5),          ### vmax = mean drift rate in last condition \in (\vmin,\infty)]
+                             mu_d1 = c(-0.5,0.5),
+                             mu_d2 = c(-0.5, 0.5),
+                             s_v1= c(0.5,3),
+                             s_v2= c(0.5, 3),
+                             s_d1= c(0.5, 3),
+                             s_d2= c(0.5, 3),
+                             rho_d= c(-0.4, 0.4),
+                             rho_v= c(-0.4, 0.4),
                              t0 = c(0.2, 0.7), ### t0 = minimal non-decision time (proportional to minimum observed RT)
-                             st0 = seq(0.1, 1.2, length.out=3),    ### st0 = range of (uniform dist) non-decision time
-                             wx = wx,      ### coeff for BoE in conf= wx *(b-xj) + (wrt* 1//sqrt(t)) + (wint* (b-xj)/sqrt(t))
-                             wrt = wrt)      ### coeff for time in conf= wx *(b-xj) + (wrt* 1//sqrt(t)) + (wint* (b-xj)/sqrt(t))
-
+                             st0 = seq(0.1, 1.2, length.out=3))    ### st0 = range of (uniform dist) non-decision time
+    # init_grid <- expand.grid(vmin = c(0.01, 0.1,0.8, 1.5),         ### vmin = drift rate in first condition \in (0,\infty)]
+    #                          vmax = c( 1, 2.4, 3.8, 5, 8, 12),          ### vmax = mean drift rate in last condition \in (\vmin,\infty)]
+    #                          mu_d1 = c(-0.5, 0, 0.5),
+    #                          mu_d2 = c(-0.5, 0, 0.5),
+    #                          s_v1= c(0.5, 1.4, 3),
+    #                          s_v2= c(0.5, 1.4, 3),
+    #                          s_d1= c(0.5, 1.4, 3),
+    #                          s_d2= c(0.5, 1.4, 3),
+    #                          rho_d= c(-0.5, 0, 0.5),
+    #                          rho_v= c(-0.5, 0, 0.5),
+    #                          t0 = c(0.2, 0.7), ### t0 = minimal non-decision time (proportional to minimum observed RT)
+    #                          st0 = seq(0.1, 1.2, length.out=3))    ### st0 = range of (uniform dist) non-decision time
   }
-  # Remove column for weight that will not be fitted (including all weights, when time_scaled = FALSE)
-  init_grid <- init_grid[c(setdiff(names(init_grid), c("wx","wrt")), fitted_weights)]
-
-
   # Remove columns for fixed parameters
   init_grid <- init_grid[setdiff(names(init_grid), names(fixed))]
   init_grid <- unique(init_grid)
@@ -85,7 +61,7 @@ fittingRMs <- function(df, model, nConds, nRatings, fixed, sym_thetas, time_scal
 
   ## Guess suitable confidence thresholds from theoretical distribution of
   ## the confidence measure and proportion of ratings in the data
-  init_thetas <- get_thetas_for_init_grid_RMs_simulations(init_grid, df, model, nRatings, fixed, time_scaled, fitted_weights)
+  init_thetas <- get_thetas_for_init_grid_MTLNR_simulations(init_grid, df, nRatings, fixed)
 
 
 
@@ -98,25 +74,27 @@ fittingRMs <- function(df, model, nConds, nRatings, fixed, sym_thetas, time_scal
     inits <- data.frame(matrix(data=NA, nrow= nrow(init_grid),
                                ncol = nConds))
     for (i in 1:nConds){
-      inits[,i] <- log(init_grid[[paste("v", i, sep="")]])
-    }
-    if (!("a" %in% names(fixed))) inits <- cbind(inits, log(init_grid$a))
-    if (!("b" %in% names(fixed))) inits <- cbind(inits, log(init_grid$b))
-    if (!("t0" %in% names(fixed))) inits <- cbind(inits, qnorm(init_grid$t0))
-    if (!("st0" %in% names(fixed))) inits <- cbind(inits, log(init_grid$st0))
-    if (time_scaled) {
-      for (par in fitted_weights) {
-        inits <- cbind(inits, qnorm(init_grid[[par]]))
-      }
+      inits[,i] <- init_grid[[paste("v", i, sep="")]]
     }
 
+    if (!("mu_d1" %in% names(fixed))) inits <- cbind(inits, init_grid$mu_d1)
+    if (!("mu_d2" %in% names(fixed))) inits <- cbind(inits, init_grid$mu_d2)
+    if (!("s_v1"  %in% names(fixed))) inits <- cbind(inits, log(init_grid$s_v1 ))
+    if (!("s_v2"  %in% names(fixed))) inits <- cbind(inits, log(init_grid$s_v2 ))
+    if (!("s_d1"  %in% names(fixed))) inits <- cbind(inits, log(init_grid$s_d1 ))
+    if (!("s_d2"  %in% names(fixed))) inits <- cbind(inits, log(init_grid$s_d2 ))
+    if (!("rho_d" %in% names(fixed))) inits <- cbind(inits, qnorm(init_grid$rho_d))
+    if (!("rho_v" %in% names(fixed))) inits <- cbind(inits, qnorm(init_grid$rho_v))
+    if (!("t0"    %in% names(fixed))) inits <- cbind(inits, qnorm(init_grid$t0   ))
+    if (!("st0"   %in% names(fixed))) inits <- cbind(inits, log(init_grid$st0  ))
 
-    inits <- cbind(inits, init_thetas[,1])
+    ## Lowest theta has to be greater than 1, all others have to be ascending
+    inits <- cbind(inits, log(init_thetas[,1]))
     if (nRatings > 2) {
       inits <- cbind(inits, log(init_thetas[,-1]))
     }
     if (!sym_thetas) {
-      inits <- cbind(inits, init_thetas[,1])
+      inits <- cbind(inits, log(init_thetas[,1]))
       if (nRatings > 2) {
         inits <- cbind(inits, log(init_thetas[,-1]))
       }
@@ -129,7 +107,8 @@ fittingRMs <- function(df, model, nConds, nRatings, fixed, sym_thetas, time_scal
     ##replace all +-Inf with big/tiny numbers
     inits[inits==Inf]<- 1e6
     inits[inits==-Inf]<- -1e6
-    parnames <- c(paste("v", 1:nConds, sep=""), 'a', 'b', 't0', 'st0', fitted_weights, cols_theta)
+    parnames <- c(paste("v", 1:nConds, sep=""), 'mu_d1','mu_d2','s_v1','s_v2',
+                  's_d1','s_d2' ,'rho_d','rho_v','t0','st0', cols_theta)
     names(inits) <- setdiff(parnames, names(fixed))
   } else {
     ##### 1.2. For box-constraint optimisation algorithm span drifts and thresholds equidistantly
@@ -155,7 +134,9 @@ fittingRMs <- function(df, model, nConds, nRatings, fixed, sym_thetas, time_scal
         cols_theta <- c("thetaLower1", "thetaUpper1")
       }
     }
-    parnames <- c('a', 'b', 't0', 'st0', fitted_weights, paste("v", 1:nConds, sep=""), cols_theta)
+    #parnames <- c('a', 'b', 't0', 'st0', fitted_weights, paste("v", 1:nConds, sep=""), cols_theta)
+    parnames <- c(paste("v", 1:nConds, sep=""), 'mu_d1','mu_d2','s_v1','s_v2',
+                  's_d1','s_d2' ,'rho_d','rho_v','t0','st0', cols_theta)
     inits <- init_grid[, setdiff(parnames, names(fixed))]
   }
   # remove init_grid
@@ -168,8 +149,8 @@ fittingRMs <- function(df, model, nConds, nRatings, fixed, sym_thetas, time_scal
       n.cores <- detectCores()-1
     }
     cl <- makeCluster(type="SOCK", n.cores)
-    clusterExport(cl, c("df", "time_scaled", "mint0",
-                        "nConds","nRatings", "sym_thetas", "fixed", "fitted_weights"), envir = environment())
+    clusterExport(cl, c("df","mint0",
+                        "nConds","nRatings", "sym_thetas", "fixed"), envir = environment())
   }
 
 
@@ -187,27 +168,26 @@ fittingRMs <- function(df, model, nConds, nRatings, fixed, sym_thetas, time_scal
       if (useparallel) {
         logL <-
           parApply(cl, inits, MARGIN=1,
-                   function(p) try(neglikelihood_RMs_free(p, df, model,
-                                                             time_scaled, nConds, nRatings, fixed, mint0, fitted_weights, sym_thetas, precision),
+                   function(p) try(neglikelihood_MTLNR_free(p, df,  nConds, nRatings, fixed, mint0, sym_thetas, precision),
                                    silent=TRUE))
         #stopCluster(cl)
       } else {
         logL <-
           apply(inits, MARGIN = 1,
-                function(p) try(neglikelihood_RMs_free(p, df, model, time_scaled, nConds, nRatings, fixed, mint0, fitted_weights, sym_thetas, precision),
+                function(p) try(neglikelihood_MTLNR_free(p, df, nConds, nRatings, fixed, mint0,  sym_thetas, precision),
                                 silent = TRUE))
       }
     } else {
       if (useparallel) {
         logL <-
           parApply(cl, inits, MARGIN=1,
-                   function(p) try(neglikelihood_RMs_bounded(p, df, model, time_scaled, nConds, nRatings, fixed, mint0, fitted_weights, sym_thetas, precision),
+                   function(p) try(neglikelihood_MTLNR_bounded(p, df, nConds, nRatings, fixed, mint0, sym_thetas, precision),
                                    silent=TRUE))
         #stopCluster(cl)
       } else {
         logL <-
           apply(inits, MARGIN = 1,
-                function(p) try(neglikelihood_RMs_bounded(p, df, model, time_scaled, nConds, nRatings, fixed, mint0, fitted_weights, sym_thetas, precision),
+                function(p) try(neglikelihood_MTLNR_bounded(p, df, nConds, nRatings, fixed, mint0, sym_thetas, precision),
                                 silent=TRUE))
       }
     }
@@ -221,9 +201,9 @@ fittingRMs <- function(df, model, nConds, nRatings, fixed, sym_thetas, time_scal
   }
 
   if (optim_method!="Nelder-Mead") {
-                      # a,  b,  t0, st0, wrt and/or wint, (if needed (time_scaled=TRUE)),      v1, v2,....,,   thetaLower1, dthetaLower2.., thetaUpper1... (or theta1,...)
-    lower_optbound <- c(0,  0,   0,  0,   rep(0,length(fitted_weights)*as.numeric(time_scaled)),rep(0, nConds), rep(rep(0, nRatings-1), 2-as.numeric(sym_thetas)))[!(parnames %in% names(fixed))]
-    upper_optbound <- c(Inf,Inf, 1,Inf, rep(1,length(fitted_weights)*as.numeric(time_scaled)),rep(Inf,nConds),rep(Inf, (2-as.numeric(sym_thetas))*(nRatings-1)))[!(parnames %in% names(fixed))]
+    #                   "v(1:nConds)",    mu_d1,mu_d2,s_v1,s_v2,s_d1,s_d2,rho_d,rho_v,t0,st0, thetaLower1, dthetaLower2.., thetaUpper1... (or theta1,...)
+    lower_optbound <- c(rep(-Inf, nConds), -Inf,-Inf,    0,   0,   0,  0,  -1,   -1,  0, 0,   rep(rep(0, nRatings-1), 2-as.numeric(sym_thetas)))[!(parnames %in% names(fixed))]
+    upper_optbound <- c(rep( Inf, nConds),  Inf, Inf,  Inf, Inf, Inf, Inf,  1,    1,  1, Inf, rep(Inf, (2-as.numeric(sym_thetas))*(nRatings-1)))[!(parnames %in% names(fixed))]
   }
 
 
@@ -240,19 +220,19 @@ fittingRMs <- function(df, model, nConds, nRatings, fixed, sym_thetas, time_scal
         start <- start + rnorm(length(start), sd=pmax(0.001, abs(t(t(start))/20)))
         if (optim_method == "Nelder-Mead") {
           try(m <- optim(par = start,
-                         fn = neglikelihood_RMs_free,
-                         data=df, model=model, time_scaled=time_scaled, nConds=nConds, nRatings=nRatings,
-                         fixed=fixed, mint0=mint0, fitted_weights=fitted_weights,
+                         fn = neglikelihood_MTLNR_free,
+                         data=df, nConds=nConds, nRatings=nRatings,
+                         fixed=fixed, mint0=mint0,
                          sym_thetas=sym_thetas, precision=precision,
                          method="Nelder-Mead",
                          control = list(maxit = opts$maxit, reltol = opts$reltol)))
         } else if (optim_method =="bobyqa") {
           start <- pmax(pmin(start, upper_optbound-1e-6), lower_optbound+1e-6)
           try(m <- bobyqa(par = start,
-                          fn = neglikelihood_RMs_bounded,
+                          fn = neglikelihood_MTLNR_bounded,
                           lower = lower_optbound, upper = upper_optbound,
-                          data=df, model=model, time_scaled=time_scaled, nConds=nConds, nRatings=nRatings,
-                          fixed=fixed, mint0=mint0, fitted_weights=fitted_weights,
+                          data=df, nConds=nConds, nRatings=nRatings,
+                          fixed=fixed, mint0=mint0,
                           sym_thetas=sym_thetas, precision=precision,
                           control = list(maxfun=opts$maxfun,
                                          rhobeg = min(0.2, 0.2*max(abs(start))),
@@ -266,10 +246,10 @@ fittingRMs <- function(df, model, nConds, nRatings, fixed, sym_thetas, time_scal
         } else if (optim_method=="L-BFGS-B") {  ### ToDo: use dfoptim or pracma::grad as gradient!
           start <- pmax(pmin(start, upper_optbound-1e-6), lower_optbound+1e-6)
           try(m <- optim(par = start,
-                         fn = neglikelihood_RMs_bounded,
+                         fn = neglikelihood_MTLNR_bounded,
                          lower = lower_optbound, upper = upper_optbound,
-                         data=df, model=model,  time_scaled=time_scaled, nConds=nConds, nRatings=nRatings,
-                         fixed=fixed, mint0=mint0, fitted_weights=fitted_weights,
+                         data=df, nConds=nConds, nRatings=nRatings,
+                         fixed=fixed, mint0=mint0,
                          sym_thetas=sym_thetas, precision=precision,
                          method="L-BFGS-B",
                          control = list(maxit = opts$maxit, factr = opts$factr)))
@@ -322,19 +302,19 @@ fittingRMs <- function(df, model, nConds, nRatings, fixed, sym_thetas, time_scal
         start <- start + rnorm(length(start), sd=pmax(0.001, abs(t(t(start))/20)))
         if (optim_method == "Nelder-Mead") {
           try(m <- optim(par = start,
-                         fn = neglikelihood_RMs_free,
-                         data=df, model=model,  time_scaled=time_scaled, nConds=nConds, nRatings=nRatings,
-                         fixed=fixed, mint0=mint0, fitted_weights=fitted_weights,
+                         fn = neglikelihood_MTLNR_free,
+                         data=df, nConds=nConds, nRatings=nRatings,
+                         fixed=fixed, mint0=mint0,
                          sym_thetas=sym_thetas, precision=precision,
                          method="Nelder-Mead",
                          control = list(maxit = opts$maxit, reltol = opts$reltol)))
         } else if (optim_method =="bobyqa") {
           start <- pmax(pmin(start, upper_optbound-1e-6), lower_optbound+1e-6)
           try(m <- bobyqa(par = start,
-                          fn = neglikelihood_RMs_bounded,
+                          fn = neglikelihood_MTLNR_bounded,
                           lower = lower_optbound, upper = upper_optbound,
-                          data=df, model=model,  time_scaled=time_scaled, nConds=nConds, nRatings=nRatings,
-                          fixed=fixed, mint0=mint0, fitted_weights=fitted_weights,
+                          data=df, nConds=nConds, nRatings=nRatings,
+                          fixed=fixed, mint0=mint0,
                           sym_thetas=sym_thetas, precision=precision,
                           control = list(maxfun=opts$maxfun,
                                          rhobeg = min(0.2, 0.2*max(abs(start))),
@@ -349,10 +329,10 @@ fittingRMs <- function(df, model, nConds, nRatings, fixed, sym_thetas, time_scal
         } else if (optim_method=="L-BFGS-B") {  ### ToDo: use dfoptim or pracma::grad as gradient!
           start <- pmax(pmin(start, upper_optbound-1e-6), lower_optbound+1e-6)
           try(m <- optim(par = start,
-                         fn = neglikelihood_RMs_bounded,
+                         fn = neglikelihood_MTLNR_bounded,
                          lower = lower_optbound, upper = upper_optbound,
-                         data=df, model=model,  time_scaled=time_scaled, nConds=nConds, nRatings=nRatings,
-                         fixed=fixed, mint0=mint0, fitted_weights=fitted_weights,
+                         data=df, nConds=nConds, nRatings=nRatings,
+                         fixed=fixed, mint0=mint0,
                          sym_thetas=sym_thetas, precision=precision,
                          method="L-BFGS-B",
                          control = list(maxit = opts$maxit, factr = opts$factr)))
@@ -401,34 +381,25 @@ fittingRMs <- function(df, model, nConds, nRatings, fixed, sym_thetas, time_scal
     p <- c(t(fit$par))
     if (optim_method=="Nelder-Mead") {
       names(p) <- names(inits)
-      res[,paste("v",1:(nConds), sep="")] <- exp(p[1:(nConds)])
-      if (!("a" %in% names(fixed))) res$a <- exp(p[["a"]])
-      if (!("b" %in% names(fixed))) res$b <- exp(p[["b"]])
-      if (!("t0" %in% names(fixed))) res$t0 <- pnorm(p[["t0"]])*mint0
-      if (!("st0" %in% names(fixed))) res$st0 <- exp(p[["st0"]])
+      res[,paste("v",1:(nConds), sep="")] <- p[1:(nConds)]
 
-      if (time_scaled) {
-        if (length(fitted_weights) == 1) {
-          res[,fitted_weights] <- pnorm(p[[fitted_weights]])*(1-fixed[[grep("^w", names(fixed), value = TRUE)]])
-          res[,grep("^w", names(fixed), value = TRUE)] <- fixed[[grep("^w", names(fixed), value = TRUE)]]
-          res[, setdiff(c("wx", "wrt", "wint"),names(res))] <- 1- sum(as.numeric(res[grep("^w", names(res), value=TRUE)]))
-        }
-        if (length(fitted_weights)==2) {
-          res$wx <- pnorm(p[["wx"]])
-          res$wrt <- pnorm(p[["wrt"]])*(1-res$wx)
-          res$wint <- 1 - res$wx - res$wrt
-        }
-      } else {
-        res$wx <- 1
-        res$wrt <- 0
-        res$wint <- 0
-      }
+      if (!("mu_d1" %in% names(fixed))) res$mu_d1 <- p[["mu_d1"]]
+      if (!("mu_d2" %in% names(fixed))) res$mu_d2 <- p[["mu_d2"]]
+      if (!("s_v1"  %in% names(fixed))) res$s_v1  <- exp(p[["s_v1" ]])
+      if (!("s_v2"  %in% names(fixed))) res$s_v2  <- exp(p[["s_v2" ]])
+      if (!("s_d1"  %in% names(fixed))) res$s_d1  <- exp(p[["s_d1" ]])
+      if (!("s_d2"  %in% names(fixed))) res$s_d2  <- exp(p[["s_d2" ]])
+      if (!("rho_d" %in% names(fixed))) res$rho_d <- pnorm(p[["rho_d"]])
+      if (!("rho_v" %in% names(fixed))) res$rho_v <- pnorm(p[["rho_v"]])
+      if (!("t0"    %in% names(fixed))) res$t0    <- pnorm(p[["t0"   ]])*mint0
+      if (!("st0"   %in% names(fixed))) res$st0   <- exp(p[["st0"  ]])
+
       if (nRatings > 2) {
         if (sym_thetas) {
-          res[,paste("theta",1:(nRatings-1), sep="")] <- cumsum(c(p[["theta1"]], exp(p[paste0("dtheta", 2:(nRatings-1))])))
+          res[,paste("theta",1:(nRatings-1), sep="")] <- cumsum(c(exp(p[["theta1"]]), exp(p[paste0("dtheta", 2:(nRatings-1))])))
         } else {
-          res[,paste("thetaUpper",1:(nRatings-1), sep="")] <- cumsum(c(p[["thetaUpper1"]], exp(p[paste0("dthetaUpper", 2:(nRatings-1))])))
-          res[,paste("thetaLower",1:(nRatings-1), sep="")] <- cumsum(c(p[["thetaLower1"]], exp(p[paste0("dthetaLower", 2:(nRatings-1))])))
+          res[,paste("thetaUpper",1:(nRatings-1), sep="")] <- cumsum(c(exp(p[["thetaUpper1"]]), exp(p[paste0("dthetaUpper", 2:(nRatings-1))])))
+          res[,paste("thetaLower",1:(nRatings-1), sep="")] <- cumsum(c(exp(p[["thetaLower1"]]), exp(p[paste0("dthetaLower", 2:(nRatings-1))])))
         }
       } else {
         if (sym_thetas) {
@@ -443,27 +414,6 @@ fittingRMs <- function(df, model, nConds, nRatings, fixed, sym_thetas, time_scal
       res[1,] <- p
       names(res) <- names(inits)      # a, b, t0, st0, wrt and wint (maybe), v1, v2,....,, thetaLower1,dthetaLower2-4,   thetaUpper1,dthetaUpper2-4,
       if (!("t0" %in% names(fixed))) res$t0 <- res$t0*mint0
-
-      if (time_scaled) {
-        if (length(fitted_weights) == 1) {
-          res[,fitted_weights] <- res[,fitted_weights]*(1-fixed[[grep("^w", names(fixed), value = TRUE)]])
-          res[,grep("^w", names(fixed), value = TRUE)] <- fixed[[grep("^w", names(fixed), value = TRUE)]]
-          res[, setdiff(c("wx", "wrt", "wint"),names(res))] <- 1- sum(as.numeric(res[grep("^w", names(res), value=TRUE)]))
-        }
-        if (length(fitted_weights)==2) {
-          res$wrt <- res[["wrt"]]*(1-res$wx)
-          res$wint <- 1 - res$wx - res$wrt
-        }
-        if (length(fitted_weights)==0) {
-          res$wx <- fixed[['wx']]
-          res$wrt <- fixed[['wrt']]
-          res$wint <- fixed[['wint']]
-        }
-      } else {
-        res$wx <- 1
-        res$wrt <- 0
-        res$wint <- 0
-      }
       if (nRatings>2) {
         if (sym_thetas) {
           res[paste("theta", 2:(nRatings-1), sep="")] <- c(t(res['theta1'])) + cumsum(c(t(res[grep(names(res), pattern = "dtheta", value=TRUE)])))
@@ -476,22 +426,22 @@ fittingRMs <- function(df, model, nConds, nRatings, fixed, sym_thetas, time_scal
     }
     if (!is.null(used_cats)) {
       # If some rating categories are not used, we fit less thresholds numerically and fill up the
-      # rest by the obvious best-fitting thresholds (e.g. +/- Inf for the lowest/highest...)
+      # rest by the obvious best-fitting thresholds (e.g. 1/Inf for the lowest/highest...)
       res <- fill_thresholds(res, used_cats, actual_nRatings, 0)
       k <- k+(as.numeric(!sym_thetas)+1)*(actual_nRatings-nRatings)
       nRatings <- actual_nRatings
     }
 
-    temp_fixed <- fixed[!grepl("^w", names(fixed))]
-    if (length(temp_fixed)>=1) {
-      res <- cbind(res, as.data.frame(temp_fixed))
+    if (length(fixed)>=1) {
+      res <- cbind(res, as.data.frame(fixed))
     }
-    if (res[['a']] == "b") res$a <- res$b
-    if (res[['b']] == "a") res$b <- res$a
+    # if (res[['s_d']] == "b") res$a <- res$b
+    # if (res[['b']] == "a") res$b <- res$a
     if (sym_thetas) {
-      res <- res[,c('a','b', 't0', 'st0', paste("v", 1:nConds, sep=""), paste("theta", 1:(nRatings-1), sep=""), 'wx', 'wrt', 'wint')]
+
+      res <- res[,c(paste("v", 1:nConds, sep=""), 'mu_d1','mu_d2','s_v1','s_v2', 's_d1','s_d2' ,'rho_d','rho_v','t0','st0', paste("theta", 1:(nRatings-1), sep=""))]
     } else {
-      res <- res[,c('a','b', 't0', 'st0', paste("v", 1:nConds, sep=""), paste("thetaLower", 1:(nRatings-1), sep=""), paste("thetaUpper", 1:(nRatings-1), sep=""), 'wx', 'wrt', 'wint')]
+      res <- res[,c(paste("v", 1:nConds, sep=""), 'mu_d1','mu_d2','s_v1','s_v2', 's_d1','s_d2' ,'rho_d','rho_v','t0','st0', paste("thetaLower", 1:(nRatings-1), sep=""), paste("thetaUpper", 1:(nRatings-1), sep=""))]
     }
     res$fixed <- paste(c("sym_thetas", names(fixed)), c(sym_thetas,fixed), sep="=", collapse = ", ")
     res$negLogLik <- fit$value
@@ -509,54 +459,48 @@ fittingRMs <- function(df, model, nConds, nRatings, fixed, sym_thetas, time_scal
 }
 
 
-neglikelihood_RMs_free <-   function(p, data,  model, time_scaled,
+neglikelihood_MTLNR_free <-   function(p, data,
                                      nConds, nRatings,
-                                     fixed, mint0, fitted_weights, sym_thetas, precision)
+                                     fixed, mint0, sym_thetas, precision)
 {
   # get parameter vector back from real transformations
   paramDf <-  data.frame(matrix(nrow=1, ncol=0))
   if (length(fixed)>=1) {
     paramDf <- cbind(paramDf, as.data.frame(fixed))
   }
-  paramDf[,paste("v",1:(nConds), sep="")] <- exp(p[1:(nConds)])
-  if (!("a" %in% names(fixed))) paramDf$a <- exp(p[["a"]])
-  if (!("b" %in% names(fixed))) paramDf$b <- exp(p[["b"]])
-  if (paramDf$a == "b") paramDf$a <- paramDf$b
-  if (paramDf$b == "a") paramDf$b <- paramDf$a
-  if (!("t0" %in% names(fixed))) paramDf$t0 <- pnorm(p[["t0"]])*mint0
-  if (!("st0" %in% names(fixed))) paramDf$st0 <- exp(p[["st0"]])
+  paramDf[,paste("v",1:(nConds), sep="")] <- p[1:(nConds)]
+  if (!("mu_d1" %in% names(fixed))) paramDf$mu_d1 <- p[["mu_d1"]]
+  if (!("mu_d2" %in% names(fixed))) paramDf$mu_d2 <- p[["mu_d2"]]
+  if (!("s_v1"  %in% names(fixed))) paramDf$s_v1  <- exp(p[["s_v1" ]])
+  if (!("s_v2"  %in% names(fixed))) paramDf$s_v2  <- exp(p[["s_v2" ]])
+  if (!("s_d1"  %in% names(fixed))) paramDf$s_d1  <- exp(p[["s_d1" ]])
+  if (!("s_d2"  %in% names(fixed))) paramDf$s_d2  <- exp(p[["s_d2" ]])
+  if (!("rho_d" %in% names(fixed))) paramDf$rho_d <- pnorm(p[["rho_d"]])
+  if (!("rho_v" %in% names(fixed))) paramDf$rho_v <- pnorm(p[["rho_v"]])
+  if (!("t0"    %in% names(fixed))) paramDf$t0    <- pnorm(p[["t0"   ]])*mint0
+  if (!("st0"   %in% names(fixed))) paramDf$st0   <- exp(p[["st0"  ]])
+  # if (paramDf$a == "b") paramDf$a <- paramDf$b
+  # if (paramDf$b == "a") paramDf$b <- paramDf$a
 
-  if (time_scaled) { # otherwise, the weights will be set within LogLikRM
-    if (length(fitted_weights) == 1) {
-      paramDf[,fitted_weights] <- pnorm(p[[fitted_weights]])*(1-fixed[[grep("^w", names(fixed), value = TRUE)]])
-      paramDf[,grep("^w", names(fixed), value = TRUE)] <- fixed[[grep("^w", names(fixed), value = TRUE)]]
-      paramDf[, setdiff(c("wx", "wrt", "wint"),names(paramDf))] <- 1- sum(as.numeric(paramDf[grep("^w", names(paramDf), value=TRUE)]))
-    }
-    if (length(fitted_weights)==2) {
-      paramDf$wx <- pnorm(p[["wx"]])
-      paramDf$wrt <- pnorm(p[["wrt"]])*(1-paramDf$wx)
-      paramDf$wint <- 1 - paramDf$wx - paramDf$wrt
-    }
-  }
   if (nRatings > 2) {
     if (sym_thetas) {
-      paramDf[,paste("theta",1:(nRatings-1), sep="")] <- cumsum(c(p[["theta1"]], exp(p[paste0("dtheta", 2:(nRatings-1))])))
+      paramDf[,paste("theta",1:(nRatings-1), sep="")] <- cumsum(c(exp(p[["theta1"]]), exp(p[paste0("dtheta", 2:(nRatings-1))])))
     } else {
-      paramDf[,paste("thetaUpper",1:(nRatings-1), sep="")] <- cumsum(c(p[["thetaUpper1"]], exp(p[paste0("dthetaUpper", 2:(nRatings-1))])))
-      paramDf[,paste("thetaLower",1:(nRatings-1), sep="")] <- cumsum(c(p[["thetaLower1"]], exp(p[paste0("dthetaLower", 2:(nRatings-1))])))
+      paramDf[,paste("thetaUpper",1:(nRatings-1), sep="")] <- cumsum(c(exp(p[["thetaUpper1"]]), exp(p[paste0("dthetaUpper", 2:(nRatings-1))])))
+      paramDf[,paste("thetaLower",1:(nRatings-1), sep="")] <- cumsum(c(exp(p[["thetaLower1"]]), exp(p[paste0("dthetaLower", 2:(nRatings-1))])))
     }
   } else {
     if (sym_thetas) {
-      paramDf[,paste("theta",1:(nRatings-1), sep="")] <- p[["theta1"]]
+      paramDf[,paste("theta",1:(nRatings-1), sep="")] <- exp(p[["theta1"]])
     } else {
-      paramDf[,paste("thetaUpper",1:(nRatings-1), sep="")] <- p[["thetaUpper1"]]
-      paramDf[,paste("thetaLower",1:(nRatings-1), sep="")] <- p[["thetaLower1"]]
+      paramDf[,paste("thetaUpper",1:(nRatings-1), sep="")] <- exp(p[["thetaUpper1"]])
+      paramDf[,paste("thetaLower",1:(nRatings-1), sep="")] <- exp(p[["thetaLower1"]])
     }
   }
   if (any(is.infinite(t(paramDf))) || any(is.na(t(paramDf)))) {
     return(1e12)
   }
-  negloglik <- -LogLikRM(data, paramDf, model, time_scaled, precision)
+  negloglik <- -LogLikMTLNR(data, paramDf, precision)
 
   return(negloglik)
 }
@@ -564,9 +508,9 @@ neglikelihood_RMs_free <-   function(p, data,  model, time_scaled,
 
 
 
-neglikelihood_RMs_bounded <-   function(p, data, model, time_scaled,
+neglikelihood_MTLNR_bounded <-   function(p, data,
                                         nConds, nRatings,
-                                        fixed, mint0, fitted_weights, sym_thetas, precision)
+                                        fixed, mint0, sym_thetas, precision)
 {
   # get parameter vector back from real transformations
   paramDf <-   data.frame(matrix(nrow=1, ncol=length(p)))
@@ -591,21 +535,10 @@ neglikelihood_RMs_bounded <-   function(p, data, model, time_scaled,
   if (length(fixed)>=1) {
     paramDf <- cbind(paramDf, as.data.frame(fixed))
   }
-  if (paramDf$a == "b") paramDf$a <- paramDf$b
-  if (paramDf$b == "a") paramDf$b <- paramDf$a
+  # if (paramDf$a == "b") paramDf$a <- paramDf$b
+  # if (paramDf$b == "a") paramDf$b <- paramDf$a
   if (!("t0" %in% names(fixed))) paramDf['t0'] <- paramDf['t0']*mint0
-  if (time_scaled) { # otherwise, the weights will be set within LogLikRM
-    if (length(fitted_weights) == 1) {
-      paramDf[,fitted_weights] <- paramDf[,fitted_weights]*(1-fixed[[grep("^w", names(fixed), value = TRUE)]])
-      paramDf[,grep("^w", names(fixed), value = TRUE)] <- fixed[[grep("^w", names(fixed), value = TRUE)]]
-      paramDf[, setdiff(c("wx", "wrt", "wint"),names(paramDf))] <- 1- sum(as.numeric(paramDf[grep("^w", names(paramDf), value=TRUE)]))
-    }
-    if (length(fitted_weights)==2) {
-      paramDf$wrt <- paramDf[["wrt"]]*(1-paramDf$wx)
-      paramDf$wint <- 1 - paramDf$wx - paramDf$wrt
-    }
-  }
-  negloglik <- -LogLikRM(data, paramDf, model, time_scaled, precision)
+  negloglik <- -LogLikMTLNR(data, paramDf, precision)
   return(negloglik)
 }
 
